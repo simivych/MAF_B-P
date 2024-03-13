@@ -9,7 +9,7 @@ import java.util.List;
 import java.util.Map;
 
 public class LP {
-    public static LPResult solve(List<LeafSet> leafSets, List<LeafSet> leafSetsFixed0, List<LeafSet> leafSetsFixed1, List<Node> leaves, List<Integer> internal1, List<Integer> internal2) {
+    public static LPResult solve(List<LeafSet> leafSets, List<Node> leaves, List<Integer> internal1, List<Integer> internal2) {
         // Create the modeler/solver object
         try (IloCplex cplex = new IloCplex()) {
 
@@ -17,11 +17,11 @@ public class LP {
             IloRange[][]  rng = new IloRange[1][];
             Map<String, Double> duals = new HashMap();
 
-            populate(cplex, var, rng, leafSets, leaves, leafSetsFixed0, leafSetsFixed1, internal1, internal2);
+            populate(cplex, var, rng, leafSets, leaves, internal1, internal2);
 
 
             // solve the model and display the solution if one was found
-            if ( cplex.solve() ) {
+            if ( cplex.solve(new Branching(var[0])) ) {
                 double[] x     = cplex.getValues(var[0]);
                 double[] pi    = cplex.getDuals(rng[0]);
 
@@ -54,10 +54,10 @@ public class LP {
 
     static void populate(IloMPModeler model,
                                IloNumVar[][] var,
-                               IloRange[][] rng, List<LeafSet> leavesInSubsets,  List<Node> leaves, List<LeafSet> leafSetsFixed0, List<LeafSet> leafSetsFixed1, List<Integer> internal1, List<Integer> internal2) throws IloException {
+                               IloRange[][] rng, List<LeafSet> leavesInSubsets,  List<Node> leaves, List<Integer> internal1, List<Integer> internal2) throws IloException {
 
         int numSubtrees = leavesInSubsets.size();
-        int numConstraints = leaves.size() + leafSetsFixed0.size() + leafSetsFixed1.size() + internal1.size() + internal2.size();
+        int numConstraints = leaves.size() + internal1.size() + internal2.size();
 
         double[] lb = new double[numSubtrees];
         Arrays.fill(lb, 0.0);
@@ -109,20 +109,6 @@ public class LP {
                 }
             }
             rng[0][i] = model.addLe(leafConstraint, 1.0, "internal" + internalNode);
-            i++;
-        }
-
-        // add branching constraints
-        for (LeafSet leafset : leafSetsFixed0) {
-            IloLinearNumExpr leafConstraint = model.linearNumExpr();
-            leafConstraint.addTerm(1.0, x[leafset.ILPval]);
-            rng[0][i] = model.addEq(leafConstraint, 0.0, "fixed" + i);
-            i++;
-        }
-        for (LeafSet leafset : leafSetsFixed1) {
-            IloLinearNumExpr leafConstraint = model.linearNumExpr();
-            leafConstraint.addTerm(1.0, x[leafset.ILPval]);
-            rng[0][i] = model.addEq(leafConstraint, 1.0, "fixed" + i);
             i++;
         }
         System.out.println(Arrays.deepToString(rng));

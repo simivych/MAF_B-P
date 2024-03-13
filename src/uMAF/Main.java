@@ -14,14 +14,8 @@ public class Main {
         Graph<Node, DefaultEdge> tree2 = trees[1];
         tree1 = remove_root(tree1);
         tree2 = remove_root(tree2);
-
-        if (graphs_equal(tree1, tree2)) {
-            System.out.println("The graphs are equal.");
-        } else {
-            System.out.println("The graphs are not equal.");
-        }
         BandP bp = new BandP(tree1, tree2);
-        bp.run();
+        System.out.println("Final solution " + bp.solution.value);
         }
 
 }

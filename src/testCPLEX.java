@@ -23,6 +23,7 @@
 
 import ilog.concert.*;
 import ilog.cplex.*;
+import uMAF.Branching;
 
 import java.util.Arrays;
 
@@ -56,9 +57,7 @@ public class testCPLEX {
 
             populateByRow1(cplex, var, rng);
 
-
-            // solve the model and display the solution if one was found
-            if ( cplex.solve() ) {
+            if  ( cplex.solve(new Branching(var[0])) ) {
                 double[] x     = cplex.getValues(var[0]);
                 double[] pi    = cplex.getDuals(rng[0]);
 
