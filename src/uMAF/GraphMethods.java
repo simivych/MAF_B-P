@@ -34,6 +34,7 @@ public class GraphMethods {
         return tree;
     }
 
+    // Possibly used as a check after output
     public static boolean graphs_equal(Graph<Node, DefaultEdge> g1, Graph<Node, DefaultEdge> g2){
         VF2SubgraphIsomorphismInspector ii = new VF2SubgraphIsomorphismInspector(g1, g2);
 

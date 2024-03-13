@@ -21,6 +21,7 @@ public class MAST {
     }
 
     public Set<Node> getMAST(){
+        // initial split into rooted subtrees
         double max_size = 0;
         Set<Node> MAST_leaves = null;
         for(DefaultEdge e1: tree1.edgeSet()){
@@ -71,8 +72,8 @@ public class MAST {
 
         }
 
-        //TODO weighted MAST based on dual weights and trees
-        // compute list of O pairs for p,q
+        //TODO weighted MAST iteratively
+        // compute list of 'child' pairs for p,q
         // for each list calculate solveMAST
         // return max
 
@@ -81,8 +82,9 @@ public class MAST {
 
     private Graph<Node, DefaultEdge>[] get_e_subtrees(Graph<Node, DefaultEdge> tree, DefaultEdge edge) {
         Node root1 = tree.getEdgeSource(edge);
-        Graph<Node, DefaultEdge> e_subtrees1 = dfs(tree, root1);
         Node root2 = tree.getEdgeTarget(edge);
+        tree.removeEdge(edge);
+        Graph<Node, DefaultEdge> e_subtrees1 = dfs(tree, root1);
         Graph<Node, DefaultEdge> e_subtrees2 = dfs(tree, root2);
         Graph<Node, DefaultEdge>[] e_subtrees = new Graph[]{e_subtrees1, e_subtrees2};
         return e_subtrees;
@@ -106,6 +108,7 @@ public class MAST {
         return e_subtree;
     }
 
+    // A class that will store the leaf set and its weight of a partial MAST
     public class Subtree {
         public Set<Node> nodes;
         public double weightedSize;
