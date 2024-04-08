@@ -20,7 +20,7 @@ public class MAST {
         this.duals = duals;
     }
 
-    public Set<Node> getMAST(){
+    public LeafSet getMAST(){
         // initial split into rooted subtrees
         double max_size = 0;
         Set<Node> MAST_leaves = null;
@@ -51,8 +51,7 @@ public class MAST {
                 }
             }
         }
-
-        return MAST_leaves;
+        return new LeafSet(tree1, tree2, MAST_leaves);
     }
 
     public Subtree solveMAST(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){

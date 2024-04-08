@@ -7,111 +7,196 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.jgrapht.Graph;
+import org.jgrapht.GraphPath;
+import org.jgrapht.Graphs;
+import org.jgrapht.alg.shortestpath.BFSShortestPath;
+import org.jgrapht.graph.DefaultEdge;
+import org.jgrapht.graph.DefaultUndirectedGraph;
 
 public class LP {
-    public static LPResult solve(List<LeafSet> leafSets, List<Node> leaves, List<Integer> internal1, List<Integer> internal2) {
+    public List<LeafSet> leafSets;
+    public List<Node> leaves;
+    public List<Integer> internal1;
+    public List<Integer> internal2;
+    public Graph<Node, DefaultEdge> tree1;
+    public Graph<Node, DefaultEdge> tree2;
+    public long startTime;
+    public long duration;
+
+    public LP(List<LeafSet> leafSets, List<Node> leaves, List<Integer> internal1, List<Integer> internal2, Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
+        this.leafSets = leafSets;
+        this.leaves = leaves;
+        this.internal1 = internal1;
+        this.internal2 = internal2;
+        this.tree1 = tree1;
+        this.tree2 = tree2;
+        startTime = System.currentTimeMillis();
+        duration = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+    }
+    public double solve() {
         // Create the modeler/solver object
         try (IloCplex cplex = new IloCplex()) {
+            int numConstraints = leaves.size() + internal1.size() + internal2.size();
 
-            IloNumVar[][] var = new IloNumVar[1][];
-            IloRange[][]  rng = new IloRange[1][];
-            Map<String, Double> duals = new HashMap();
+            IloNumVarArray var = new IloNumVarArray();
+            IloRange[]  rng = new IloRange[numConstraints];
+            IloObjective MAFsize = cplex.addMinimize();
 
-            populate(cplex, var, rng, leafSets, leaves, internal1, internal2);
+            populate(cplex, var, rng, MAFsize);
 
+            cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);
 
-            // solve the model and display the solution if one was found
-            if ( cplex.solve(new Branching(var[0])) ) {
-                double[] x     = cplex.getValues(var[0]);
-                double[] pi    = cplex.getDuals(rng[0]);
+            cplex.solve(new BranchingAndPrice(var, rng, MAFsize));
 
-
-                cplex.output().println("Solution status = " + cplex.getStatus());
-                cplex.output().println("Solution value  = " + cplex.getObjValue());
-
-                int nvars = x.length;
-                for (int j = 0; j < nvars; ++j) {
-                    cplex.output().println("Variable " + j +
-                            ": Value = " + x[j]);
-                }
-
-                int ncons = pi.length;
-                for (int i = 0; i < ncons; ++i) {
-                    cplex.output().println("Constraint " + rng[0][i].getName() +
-                            " Pi = " + pi[i] );
-                    duals.put(rng[0][i].getName(), pi[i]);
-                }
-            }
-            LPResult lpResult = new LPResult(duals, cplex.getObjValue());
-            return lpResult;
+            return cplex.getObjValue();
         }
         catch (IloException e) {
             e.printStackTrace();
         }
-        return null;
+        return leaves.size();
 
     }
 
-    static void populate(IloMPModeler model,
-                               IloNumVar[][] var,
-                               IloRange[][] rng, List<LeafSet> leavesInSubsets,  List<Node> leaves, List<Integer> internal1, List<Integer> internal2) throws IloException {
+    void populate(IloMPModeler model, IloNumVarArray var, IloRange[] rng, IloObjective MAFsize) throws IloException {
 
-        int numSubtrees = leavesInSubsets.size();
-        int numConstraints = leaves.size() + internal1.size() + internal2.size();
-
-        double[] lb = new double[numSubtrees];
-        Arrays.fill(lb, 0.0);
-        double[] ub = new double[numSubtrees];
-        Arrays.fill(ub, 1.0);
-
-        IloNumVar[] x = new IloNumVar[numSubtrees];
         int i = 0;
-        for (LeafSet leafset : leavesInSubsets) {
-            x[i] = model.numVar(0,1,leafset.name);
-            leafset.ILPval = i;
-            i++;
-        }
-        var[0] = x;
 
-        double[] objvals = new double[numSubtrees];
-        Arrays.fill(objvals, 1.0);
-        model.addMinimize(model.scalProd(x, objvals));
-
-        rng[0] = new IloRange[numConstraints];
-        i = 0;
-        // add constraints so leaves are in exactly one set
+        // Add RHS of each constraint
         for (Node leaf : leaves) {
-            IloLinearNumExpr leafConstraint = model.linearNumExpr();
-            for (LeafSet leafset : leavesInSubsets) {
-                if (leafset.contains(leaf.name)) {
-                    leafConstraint.addTerm(1.0, x[leafset.ILPval]);
-                }
-            }
-            rng[0][i] = model.addEq(leafConstraint, 1.0, leaf.name);
-            i++;
+            rng[i++] = model.addRange(1.0, 1.0, leaf.name);
         }
-        // add constraints so internal nodes dont overlap
         for (int internalNode : internal1) {
-            IloLinearNumExpr leafConstraint = model.linearNumExpr();
-            for (LeafSet leafSet : leavesInSubsets){
-                if(leafSet.has_internal(internalNode, 1)){
-                    leafConstraint.addTerm(1.0, x[leafSet.ILPval]);
-                }
-            }
-            rng[0][i] = model.addLe(leafConstraint, 1.0, "internal" + internalNode);
-            i++;
+            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, "internal" + internalNode);
         }
         for (int internalNode : internal2) {
-            IloLinearNumExpr leafConstraint = model.linearNumExpr();
-            for (LeafSet leafSet : leavesInSubsets){
-                if(leafSet.has_internal(internalNode, 2)){
-                    leafConstraint.addTerm(1.0, x[leafSet.ILPval]);
+            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, "internal" + internalNode);
+        }
+
+        // Add LHS of constraints
+        for (LeafSet leafSet: leafSets){
+            IloColumn column = leafSetColumn(leafSet, model, MAFsize, rng);
+            var.add(model.numVar(column, 0.0, 1.0));
+        }
+    }
+
+    IloColumn leafSetColumn(LeafSet leafSet, IloMPModeler model, IloObjective MAFsize, IloRange[] rng) throws IloException {
+        IloColumn column = model.column(MAFsize, 1.0);
+        int i = 0;
+        for (Node leaf : leaves) {
+            if(leafSet.contains(leaf)){
+                column = column.and(model.column(rng[i++], 1.0));
+            }else{
+                column = column.and(model.column(rng[i++], 0.0));
+            }
+        }
+        for (int internalNode : internal1) {
+            if(leafSet.has_internal(internalNode, 1)){
+                column = column.and(model.column(rng[i++], 1.0));
+            }else{
+                column = column.and(model.column(rng[i++], 0.0));
+            }
+        }
+        for (int internalNode : internal2) {
+            if(leafSet.has_internal(internalNode, 2)){
+                column = column.and(model.column(rng[i++], 1.0));
+            }else{
+                column = column.and(model.column(rng[i++], 0.0));
+            }
+        }
+        return column;
+    }
+
+    static class IloNumVarArray {
+        int _num           = 0;
+        IloNumVar[] _array = new IloNumVar[32];
+
+        void add(IloNumVar ivar) {
+            if ( _num >= _array.length ) {
+                IloNumVar[] array = new IloNumVar[2 * _array.length];
+                System.arraycopy(_array, 0, array, 0, _num);
+                _array = array;
+            }
+            _array[_num++] = ivar;
+        }
+
+        IloNumVar getElement(int i) {
+            return _array[i];
+        }
+        int getSize() {
+            return _num;
+        }
+        IloNumVar[] getArray(){
+            IloNumVar[] array = new IloNumVar[_num];
+            for(int i=0;i<_num;i++){
+                array[i]=_array[i];
+            }
+            return array;
+        }
+    }
+    public class BranchingAndPrice  extends IloCplex.Goal{
+        IloNumVarArray vars;
+        IloRange[] rng;
+        IloObjective MAFsize;
+
+        public BranchingAndPrice(IloNumVarArray vars, IloRange[] rng, IloObjective MAFsize) {
+            this.vars = vars;
+            this.rng = rng;
+            this.MAFsize = MAFsize;
+        }
+
+        // Branch on var with largest objective coefficient
+        // among those that are not ints
+        public IloCplex.Goal execute(IloCplex cplex) throws IloException {
+            // Add columns until none add to the objective function
+            IloColumn column = getColumn(cplex);
+            while(column != null) {
+                // Add column to cplex and get new
+                vars.add(cplex.numVar(column, 0.0, 1.0));
+                cplex.solve();
+                column = getColumn(cplex);
+            }
+
+            double[] x   = cplex.getValues(vars.getArray());
+
+            double maxinf = 0.0;
+            int    bestj  = -1;
+            int    cols   = vars.getSize();
+            for (int j = 0; j < cols; ++j) {
+                if ( x[j] % 1 != 0 ) { // if it is not an int
+                    double xj_inf = x[j] - Math.floor(x[j]);
+                    if ( xj_inf > 0.5 ) {
+                        xj_inf = 1.0 - xj_inf;
+                    }
+                    if (xj_inf >= maxinf) {
+                        bestj  = j;
+                        maxinf = xj_inf;
+                    }
                 }
             }
-            rng[0][i] = model.addLe(leafConstraint, 1.0, "internal" + internalNode);
-            i++;
+
+            if ( bestj >= 0 && System.currentTimeMillis() - startTime < duration) {
+                return cplex.and(cplex.or(cplex.geGoal(vars.getElement(bestj), Math.floor(x[bestj])+1), cplex.leGoal(vars.getElement(bestj), Math.floor(x[bestj]))), this);
+            }
+            else
+                return null;
         }
-        System.out.println(Arrays.deepToString(rng));
+        public IloColumn getColumn(IloCplex cplex) throws IloException{
+            double[] pi = cplex.getDuals(rng);
+            Map<String, Double> duals = new HashMap<>();
+            int nconts = pi.length;
+            for (int i = 0; i < nconts; ++i) {
+                duals.put(rng[i].getName(), pi[i]);
+            }
+            MAST mast = new MAST(tree1, tree2, duals);
+            LeafSet newLeafSet = mast.getMAST();
+            if(newLeafSet == null){
+                return null;
+            }
+            return leafSetColumn(newLeafSet, cplex, MAFsize, rng);
+        }
     }
+
 
 }

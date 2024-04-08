@@ -11,7 +11,7 @@ public class BandP {
     public List<Node> leaves;
     public List<Integer> internal1;
     public List<Integer> internal2;
-    public LPResult solution;
+    public double solution;
 
     public BandP(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
         this.tree1 = tree1;
@@ -24,7 +24,7 @@ public class BandP {
         leaves = new ArrayList<>();
         internal1 = new ArrayList<>();
         for (Node node: tree1.vertexSet()){
-            if(!node.name.equals("")){
+            if(!node.name.isEmpty()){
                 leaves.add(node);
             }else{
                 internal1.add(node.id);
@@ -32,7 +32,7 @@ public class BandP {
         }
         internal2 = new ArrayList<>();
         for (Node node: tree2.vertexSet()){
-            if(node.name.equals("")){
+            if(node.name.isEmpty()){
                 internal2.add(node.id);
             }
         }
@@ -43,7 +43,8 @@ public class BandP {
             LeafSet leafSet = new LeafSet(tree1, tree2, leafNode);
             initialLeafSets.add(leafSet);
         }
-        solution = LP.solve(initialLeafSets, leaves, internal1, internal2);
+        LP lp = new LP(initialLeafSets, leaves, internal1, internal2, tree1, tree2);
+        solution = lp.solve();
     }
 
 }
