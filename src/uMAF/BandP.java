@@ -20,7 +20,12 @@ public class BandP {
 
     }
 
+    /**
+     * Creates initail leaf sets (individual leaves to ensure feasibility)
+     * and calls LP to solve with BandP
+     */
     private void solve() {
+        // initialise individual leaves as leafsets to ensure feasibility
         leaves = new ArrayList<>();
         internal1 = new ArrayList<>();
         for (Node node: tree1.vertexSet()){

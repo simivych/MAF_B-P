@@ -9,6 +9,11 @@ import java.util.*;
 
 public class GraphMethods {
 
+    /**
+     * Creates unrooted tree from rooted tree
+     * @param tree
+     * @return
+     */
     public static Graph<Node, DefaultEdge> remove_root(Graph<Node, DefaultEdge> tree){
         List<Node> nodesToRemove = new ArrayList<>();
         for (Node node : tree.vertexSet()) {
@@ -34,7 +39,13 @@ public class GraphMethods {
         return tree;
     }
 
-    // Possibly used as a check after output
+    /**
+     * Checks if trees are isomorphic
+     * Possible to use as check when testing
+     * @param g1
+     * @param g2
+     * @return
+     */
     public static boolean graphs_equal(Graph<Node, DefaultEdge> g1, Graph<Node, DefaultEdge> g2){
         VF2SubgraphIsomorphismInspector ii = new VF2SubgraphIsomorphismInspector(g1, g2);
 
@@ -48,7 +59,7 @@ public class GraphMethods {
             }
             for (Map.Entry<String, Node> entry : vertexMap.entrySet()) {
                 Node u = (Node) map.getVertexCorrespondence(entry.getValue(), true);
-                System.out.print(u+" "+entry.getValue()+"    ");
+                System.out.print(STR."\{u} \{entry.getValue()}    ");
                 System.out.print(u.equals(entry.getValue()));
                 if(!u.equals(entry.getValue())){
                     this_map = false;

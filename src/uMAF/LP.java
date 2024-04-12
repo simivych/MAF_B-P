@@ -2,17 +2,11 @@ package uMAF;
 
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
-
-import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.jgrapht.Graph;
-import org.jgrapht.GraphPath;
-import org.jgrapht.Graphs;
-import org.jgrapht.alg.shortestpath.BFSShortestPath;
 import org.jgrapht.graph.DefaultEdge;
-import org.jgrapht.graph.DefaultUndirectedGraph;
 
 public class LP {
     public List<LeafSet> leafSets;
@@ -35,6 +29,11 @@ public class LP {
         duration = 5 * 60 * 1000; // 5 minutes in milliseconds
 
     }
+
+    /**
+     * set up and run LP
+     * @return
+     */
     public double solve() {
         // Create the modeler/solver object
         try (IloCplex cplex = new IloCplex()) {
@@ -48,6 +47,23 @@ public class LP {
 
             cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);
 
+            cplex.solve();
+            double[] pi = cplex.getDuals(rng);
+            Map<String, Double> duals = new HashMap<>();
+            int nconts = pi.length;
+            for (int i = 0; i < nconts; ++i) {
+                duals.put(rng[i].getName(), pi[i]);
+            }
+            MAST mast = new MAST(tree1, tree2, duals);
+            LeafSet newLeafSet = mast.getMAST();
+            System.out.println(newLeafSet);
+            IloColumn column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
+            if(column != null) {
+                // Add column to cplex and get new
+                var.add(cplex.numVar(column, 0.0, 1.0));
+            }
+
+
             cplex.solve(new BranchingAndPrice(var, rng, MAFsize));
 
             return cplex.getObjValue();
@@ -59,6 +75,14 @@ public class LP {
 
     }
 
+    /**
+     * Creates initial LP model
+     * @param model
+     * @param var
+     * @param rng
+     * @param MAFsize
+     * @throws IloException
+     */
     void populate(IloMPModeler model, IloNumVarArray var, IloRange[] rng, IloObjective MAFsize) throws IloException {
 
         int i = 0;
@@ -81,6 +105,15 @@ public class LP {
         }
     }
 
+    /**
+     * Does column generation for a new leafset
+     * @param leafSet
+     * @param model
+     * @param MAFsize
+     * @param rng
+     * @return
+     * @throws IloException
+     */
     IloColumn leafSetColumn(LeafSet leafSet, IloMPModeler model, IloObjective MAFsize, IloRange[] rng) throws IloException {
         IloColumn column = model.column(MAFsize, 1.0);
         int i = 0;
@@ -108,6 +141,9 @@ public class LP {
         return column;
     }
 
+    /**
+     * A class that is an extendable array (so number of variables can grow)
+     */
     static class IloNumVarArray {
         int _num           = 0;
         IloNumVar[] _array = new IloNumVar[32];
@@ -135,6 +171,10 @@ public class LP {
             return array;
         }
     }
+
+    /**
+     * Branching interface
+     */
     public class BranchingAndPrice  extends IloCplex.Goal{
         IloNumVarArray vars;
         IloRange[] rng;
@@ -146,8 +186,12 @@ public class LP {
             this.MAFsize = MAFsize;
         }
 
-        // Branch on var with largest objective coefficient
-        // among those that are not ints
+        /**
+         * Branch and Price execution
+         * @param cplex
+         * @return
+         * @throws IloException
+         */
         public IloCplex.Goal execute(IloCplex cplex) throws IloException {
             // Add columns until none add to the objective function
             IloColumn column = getColumn(cplex);
@@ -182,6 +226,13 @@ public class LP {
             else
                 return null;
         }
+
+        /**
+         * Calls MAST and generate column
+         * @param cplex
+         * @return a new generated column
+         * @throws IloException
+         */
         public IloColumn getColumn(IloCplex cplex) throws IloException{
             double[] pi = cplex.getDuals(rng);
             Map<String, Double> duals = new HashMap<>();
@@ -191,6 +242,7 @@ public class LP {
             }
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
+            System.out.println(newLeafSet);
             if(newLeafSet == null){
                 return null;
             }

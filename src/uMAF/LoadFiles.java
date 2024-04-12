@@ -56,6 +56,11 @@ public class LoadFiles {
         return leaves;
     }
 
+    /**
+     * Convers Newick format to Graph<Node, DefaultEdge>
+     * @param newick
+     * @return
+     */
     public static Graph<Node, DefaultEdge> convert(String newick) {
         DefaultUndirectedGraph<Node, DefaultEdge> graph = new DefaultUndirectedGraph<>(DefaultEdge.class);
         Stack<Node> stack = new Stack<>();
@@ -64,7 +69,7 @@ public class LoadFiles {
             if (c == '(') {
                 Node n = new Node();
                 graph.addVertex(n);
-                if(stack.size()>0){
+                if(!stack.isEmpty()){
                     Node parent = stack.peek();
                     graph.addEdge(parent, n);
                 }

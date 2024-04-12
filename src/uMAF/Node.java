@@ -2,8 +2,8 @@ package uMAF;
 
 public class Node {
     public static int prev = 0;
-    public int id;
-    public String name = "";
+    public int id; // unique to each node
+    public String name = ""; // label of leaf node (empty if internal)
 
     public Node(){
         this.id = prev;
@@ -21,8 +21,8 @@ public class Node {
     }
 
     public String toString(){
-        if(name.equals("")){
-            return "internal"+id;
+        if(name.isEmpty()){
+            return STR."internal\{id}";
         }
         return name;
     }

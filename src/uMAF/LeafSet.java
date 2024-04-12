@@ -18,12 +18,19 @@ public class LeafSet {
     public Graph<Node, DefaultEdge> full_tree2;
     public boolean valid = false;
     public boolean checked_valid = false;
-    public String name;
 
     public LeafSet(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2, Set<Node> newLeaves) {
         this.full_tree1 = tree1;
         this.full_tree2 = tree2;
         this.leaves = newLeaves;
+    }
+
+    public LeafSet(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2, Set<Node> leaves, Set<Node> subgraphNodes1, Set<Node> subgraphNodes2) {
+        this.full_tree1 = tree1;
+        this.full_tree2 = tree2;
+        this.leaves = leaves;
+        this.subgraphNodes1 = subgraphNodes1;
+        this.subgraphNodes2 = subgraphNodes2;
     }
 
     public boolean has_internal(int internal, int tree){
