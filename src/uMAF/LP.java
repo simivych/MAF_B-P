@@ -2,6 +2,8 @@ package uMAF;
 
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
+
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,11 +12,11 @@ import org.jgrapht.graph.DefaultEdge;
 
 public class LP {
     public List<LeafSet> leafSets;
-    public List<Node> leaves;
-    public List<Integer> internal1;
-    public List<Integer> internal2;
-    public Graph<Node, DefaultEdge> tree1;
-    public Graph<Node, DefaultEdge> tree2;
+    public final List<Node> leaves;
+    public final List<Integer> internal1;
+    public final List<Integer> internal2;
+    public final Graph<Node, DefaultEdge> tree1;
+    public final Graph<Node, DefaultEdge> tree2;
     public long startTime;
     public long duration;
 
@@ -46,21 +48,34 @@ public class LP {
             populate(cplex, var, rng, MAFsize);
 
             cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);
-
             cplex.solve();
-            double[] pi = cplex.getDuals(rng);
-            Map<String, Double> duals = new HashMap<>();
-            int nconts = pi.length;
-            for (int i = 0; i < nconts; ++i) {
-                duals.put(rng[i].getName(), pi[i]);
+            System.out.println("VALUES");
+            for (int i = 0; i < var._num; ++i) {
+                System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
             }
+            Map<String, Double> duals = extractDuals(cplex, rng);
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
-            System.out.println(newLeafSet);
             IloColumn column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
-            if(column != null) {
-                // Add column to cplex and get new
-                var.add(cplex.numVar(column, 0.0, 1.0));
+            int j=0;
+            while(column != null) {
+                // Add column to cplex and solve
+                var.add(cplex.numVar(column, 0.0, 1.0, newLeafSet.toString()));
+                cplex.solve();
+                System.out.println();
+                System.out.println("VALUES");
+                for (int i = 0; i < var._num; ++i) {
+                    System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
+                }
+                // get new duals
+                duals = extractDuals(cplex, rng);
+                // get new column
+                mast = new MAST(tree1, tree2, duals);
+                newLeafSet = mast.getMAST();
+                column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
+               if(j++==1){
+                   System.exit(1);
+               }
             }
 
 
@@ -73,6 +88,16 @@ public class LP {
         }
         return leaves.size();
 
+    }
+
+    public Map<String, Double> extractDuals(IloCplex cplex, IloRange[] rng) throws IloException {
+        Map<String, Double> duals = new HashMap<>();
+        System.out.println("DUALS");
+        for (IloRange iloRange : rng) {
+            duals.put(iloRange.getName(), cplex.getDual(iloRange));
+            System.out.println(STR."  \{iloRange.getName()} \{cplex.getDual(iloRange)}");
+        }
+        return duals;
     }
 
     /**
@@ -101,7 +126,7 @@ public class LP {
         // Add LHS of constraints
         for (LeafSet leafSet: leafSets){
             IloColumn column = leafSetColumn(leafSet, model, MAFsize, rng);
-            var.add(model.numVar(column, 0.0, 1.0));
+            var.add(model.numVar(column, 0.0, 1.0, leafSet.toString()));
         }
     }
 
@@ -115,10 +140,14 @@ public class LP {
      * @throws IloException
      */
     IloColumn leafSetColumn(LeafSet leafSet, IloMPModeler model, IloObjective MAFsize, IloRange[] rng) throws IloException {
+        if(leafSet==null){
+            return null;
+        }
         IloColumn column = model.column(MAFsize, 1.0);
         int i = 0;
         for (Node leaf : leaves) {
             if(leafSet.contains(leaf)){
+                //System.out.println("Contains "+leaf.name);
                 column = column.and(model.column(rng[i++], 1.0));
             }else{
                 column = column.and(model.column(rng[i++], 0.0));
@@ -126,15 +155,19 @@ public class LP {
         }
         for (int internalNode : internal1) {
             if(leafSet.has_internal(internalNode, 1)){
+                //System.out.println("Contains internal"+internalNode);
                 column = column.and(model.column(rng[i++], 1.0));
             }else{
+                //System.out.println("Doesnt contain internal"+internalNode);
                 column = column.and(model.column(rng[i++], 0.0));
             }
         }
         for (int internalNode : internal2) {
             if(leafSet.has_internal(internalNode, 2)){
+                //System.out.println("Contains internal"+internalNode);
                 column = column.and(model.column(rng[i++], 1.0));
             }else{
+                //System.out.println("Doesnt contain internal"+internalNode);
                 column = column.and(model.column(rng[i++], 0.0));
             }
         }
@@ -146,7 +179,7 @@ public class LP {
      */
     static class IloNumVarArray {
         int _num           = 0;
-        IloNumVar[] _array = new IloNumVar[32];
+        IloNumVar[] _array = new IloNumVar[60];
 
         void add(IloNumVar ivar) {
             if ( _num >= _array.length ) {
@@ -194,12 +227,14 @@ public class LP {
          */
         public IloCplex.Goal execute(IloCplex cplex) throws IloException {
             // Add columns until none add to the objective function
-            IloColumn column = getColumn(cplex);
+            LeafSet newLeafSet = getMAST(cplex);
+            IloColumn column = getColumn(cplex, newLeafSet);
             while(column != null) {
                 // Add column to cplex and get new
-                vars.add(cplex.numVar(column, 0.0, 1.0));
+                vars.add(cplex.numVar(column, 0.0, 1.0, newLeafSet.toString()));
                 cplex.solve();
-                column = getColumn(cplex);
+                newLeafSet = getMAST(cplex);
+                column = getColumn(cplex, newLeafSet);
             }
 
             double[] x   = cplex.getValues(vars.getArray());
@@ -227,22 +262,20 @@ public class LP {
                 return null;
         }
 
+        private LeafSet getMAST(IloCplex cplex) throws IloException {
+            Map<String, Double> duals = extractDuals(cplex, rng);
+            MAST mast = new MAST(tree1, tree2, duals);
+            LeafSet newLeafSet = mast.getMAST();
+            return newLeafSet;
+        }
+
         /**
          * Calls MAST and generate column
          * @param cplex
          * @return a new generated column
          * @throws IloException
          */
-        public IloColumn getColumn(IloCplex cplex) throws IloException{
-            double[] pi = cplex.getDuals(rng);
-            Map<String, Double> duals = new HashMap<>();
-            int nconts = pi.length;
-            for (int i = 0; i < nconts; ++i) {
-                duals.put(rng[i].getName(), pi[i]);
-            }
-            MAST mast = new MAST(tree1, tree2, duals);
-            LeafSet newLeafSet = mast.getMAST();
-            System.out.println(newLeafSet);
+        public IloColumn getColumn(IloCplex cplex, LeafSet newLeafSet) throws IloException {
             if(newLeafSet == null){
                 return null;
             }
@@ -252,3 +285,4 @@ public class LP {
 
 
 }
+

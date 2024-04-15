@@ -114,4 +114,16 @@ public class LeafSet {
         return false;
     }
 
+    public String toString() {
+        StringBuilder sb = new StringBuilder();
+        for (Node node : leaves) {
+            sb.append(node.name).append("_");
+        }
+        // Remove the last underscore if the set is not empty
+        if (!leaves.isEmpty()) {
+            sb.deleteCharAt(sb.length() - 1);
+        }
+        return sb.toString();
+    }
+
 }

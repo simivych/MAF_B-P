@@ -29,7 +29,7 @@ public class BandP {
         leaves = new ArrayList<>();
         internal1 = new ArrayList<>();
         for (Node node: tree1.vertexSet()){
-            if(!node.name.isEmpty()){
+            if(!node.isInternal()){
                 leaves.add(node);
             }else{
                 internal1.add(node.id);
@@ -37,7 +37,7 @@ public class BandP {
         }
         internal2 = new ArrayList<>();
         for (Node node: tree2.vertexSet()){
-            if(node.name.isEmpty()){
+            if(node.isInternal()){
                 internal2.add(node.id);
             }
         }

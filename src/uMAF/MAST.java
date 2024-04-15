@@ -31,10 +31,11 @@ public class MAST {
         double max_size = -Double.MAX_VALUE;
         Subtree MAST = null;
         for(DefaultEdge e1: tree1.edgeSet()){
+            Graph<Node, DefaultEdge>[] p = get_e_subtrees(tree1, e1);
+            Graph<Node, DefaultEdge> p1 = p[0];
+            Graph<Node, DefaultEdge> p2 = p[1];
+
             for(DefaultEdge e2: tree2.edgeSet()){
-                Graph<Node, DefaultEdge>[] p = get_e_subtrees(tree1, e1);
-                Graph<Node, DefaultEdge> p1 = p[0];
-                Graph<Node, DefaultEdge> p2 = p[1];
                 Graph<Node, DefaultEdge>[] q = get_e_subtrees(tree2, e2);
                 Graph<Node, DefaultEdge> q1 = q[0];
                 Graph<Node, DefaultEdge> q2 = q[1];
@@ -57,9 +58,10 @@ public class MAST {
                 }
             }
         }
-        if(MAST==null || max_size < 1 ){
+        if(MAST==null || max_size <= 1 ){
             return null;
         }
+        System.out.println(STR."Max leaf set is of size \{MAST.leaves.size()}");
         return new LeafSet(tree1, tree2, MAST.leaves, MAST.subgraphNodes1, MAST.subgraphNodes2);
     }
 
@@ -105,13 +107,43 @@ public class MAST {
                 max_subtree = pprime_q;
             }
         }
-        //TODO bipartite matching of p_prime and q_prime pairs
+        // Matching 1
+        Subtree p0q0 = solveMAST(p_sub[0], q_sub[0]);
+        Subtree p1q1 = solveMAST(p_sub[1], q_sub[1]);
+        Subtree matching1 = get_matching(p0q0, p1q1);
+        if(max_weight<matching1.weightedSize){
+            max_weight = matching1.weightedSize;
+            max_subtree = matching1;
+        }
 
+        // Matching 2
+        Subtree p0q1 = solveMAST(p_sub[0], q_sub[1]);
+        Subtree p1q0 = solveMAST(p_sub[1], q_sub[0]);
+        Subtree matching2 = get_matching(p0q1, p1q0);
+        if(max_weight<matching2.weightedSize){
+            max_weight = matching2.weightedSize;
+            max_subtree = matching2;
+        }
 
         // save the result in the hash table
         set_hash(hash, max_subtree);
-
         return max_subtree;
+    }
+
+    public Subtree get_matching(Subtree p, Subtree q){
+        Subtree matching;
+        // if either one is empty return the other
+        if(p.leaves.isEmpty()){
+            matching = q;
+        }else if(q.leaves.isEmpty()){
+            matching = p;
+        }else{
+            // if not empty return new subtree with calculated total weight
+            Set<Node> combined = new HashSet<>(p.leaves);
+            combined.addAll(q.leaves);
+            matching = new Subtree(combined);
+        }
+        return matching;
     }
 
     private Graph<Node, DefaultEdge>[] get_e_subtrees(Graph<Node, DefaultEdge> tree, DefaultEdge edge) {
@@ -199,7 +231,7 @@ public class MAST {
     public class Subtree {
         public Set<Node> subgraphNodes1 = new HashSet<>();
         public Set<Node> subgraphNodes2 = new HashSet<>();
-        public double weightedSize;
+        public double weightedSize = -Double.MAX_VALUE;
         public Set<Node> leaves;
 
         public Subtree(Set<Node> leaves){
@@ -220,15 +252,13 @@ public class MAST {
                     weightedSize += duals.get(n.name);
                 }
             }else {
-                Set<Node> internal1 = getInternalNodes(tree1);
-                Set<Node> internal2 = getInternalNodes(tree2);
-                for (Node n : internal1) {
+                subgraphNodes1= getInternalNodes(tree1);
+                subgraphNodes2 = getInternalNodes(tree2);
+                for (Node n : subgraphNodes1) {
                     weightedSize += duals.get(n.name);
-                    subgraphNodes1.add(n);
                 }
-                for (Node n : internal2) {
+                for (Node n : subgraphNodes2) {
                     weightedSize += duals.get(n.name);
-                    subgraphNodes1.add(n);
                 }
                 for (Node n : leaves) {
                     weightedSize += duals.get(n.name);
@@ -242,17 +272,16 @@ public class MAST {
             Node node1 = leafNodesList.getFirst();
 
             for (Node node : leaves) {
-                if(node.equals(node1)){
-                    break;
-                }
-                BFSShortestPath<Node, DefaultEdge> BFSShortestPath = new BFSShortestPath<Node, DefaultEdge>(tree);
-                GraphPath<Node, DefaultEdge> shortestPath = BFSShortestPath.getPath(node, node1);
-                List<Node> pathNodes = shortestPath.getVertexList();
-                pathNodes.remove(shortestPath.getEndVertex());
-                pathNodes.remove(shortestPath.getStartVertex());
-                for (Node pathNode : pathNodes) {
-                    if(!internal.contains(pathNode)){
-                        internal.add(pathNode);
+                if(!node.equals(node1)) {
+                    BFSShortestPath<Node, DefaultEdge> BFSShortestPath = new BFSShortestPath<Node, DefaultEdge>(tree);
+                    GraphPath<Node, DefaultEdge> shortestPath = BFSShortestPath.getPath(node, node1);
+                    List<Node> pathNodes = shortestPath.getVertexList();
+                    pathNodes.remove(shortestPath.getEndVertex());
+                    pathNodes.remove(shortestPath.getStartVertex());
+                    for (Node pathNode : pathNodes) {
+                        if (!internal.contains(pathNode)) {
+                            internal.add(pathNode);
+                        }
                     }
                 }
 

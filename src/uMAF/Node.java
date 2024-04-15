@@ -8,6 +8,7 @@ public class Node {
     public Node(){
         this.id = prev;
         prev++;
+        this.name = STR."internal\{id}";;
     }
 
     public Node(String name){
@@ -15,15 +16,25 @@ public class Node {
         prev++;
         this.name = name;
     }
-
-    public boolean equals(Node node){
-        return this.name.equals(node.name);
+    @Override
+    public boolean equals(Object object){
+        if (object == null || object.getClass() != getClass()) {
+            return false;
+        } else {
+            Node node = (Node) object;
+            return this.name.equals(node.name);
+        }
     }
 
     public String toString(){
-        if(name.isEmpty()){
-            return STR."internal\{id}";
-        }
         return name;
+    }
+    @Override
+    public int hashCode() {
+        return name.hashCode();
+    }
+
+    public boolean isInternal(){
+        return name.contains("internal");
     }
 }
