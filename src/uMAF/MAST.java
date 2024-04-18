@@ -14,7 +14,7 @@ public class MAST {
     Graph<Node, DefaultEdge> tree2;
     Map<String, Double> duals;
     Map<Integer, Subtree> lookupTable = new HashMap<>();
-
+    int used_hashed = 0;
     public MAST( Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2, Map<String, Double> duals){
         this.tree1 = tree1;
         this.tree2 = tree2;
@@ -34,7 +34,6 @@ public class MAST {
             Graph<Node, DefaultEdge>[] p = get_e_subtrees(tree1, e1);
             Graph<Node, DefaultEdge> p1 = p[0];
             Graph<Node, DefaultEdge> p2 = p[1];
-
             for(DefaultEdge e2: tree2.edgeSet()){
                 Graph<Node, DefaultEdge>[] q = get_e_subtrees(tree2, e2);
                 Graph<Node, DefaultEdge> q1 = q[0];
@@ -61,7 +60,6 @@ public class MAST {
         if(MAST==null || max_size <= 1 ){
             return null;
         }
-        System.out.println(STR."Max leaf set is of size \{MAST.leaves.size()}");
         return new LeafSet(tree1, tree2, MAST.leaves, MAST.subgraphNodes1, MAST.subgraphNodes2);
     }
 
@@ -73,16 +71,19 @@ public class MAST {
      */
     public Subtree solveMAST(Graph<Node, DefaultEdge> p, Graph<Node, DefaultEdge> q){
         // If it has already been calculated return previous result
-        int hash = get_hash_value(p,q);
+        long hash = get_hash_value(p,q);
         Subtree hased_subtree = get_hash(hash);
         if (hased_subtree!=null){
+            used_hashed++;
             return hased_subtree;
         }
+        //System.out.println(p.vertexSet().size()+" "+q.vertexSet().size());
         // if one of the trees is a single node return the intersection
-        if (p.vertexSet().size() == 1 || q.vertexSet().size() == 1) {
+        if (p.vertexSet().size() <= 3 || q.vertexSet().size() <= 3) {
             Set<Node> intersectionSet = new HashSet<>(p.vertexSet());
             intersectionSet.retainAll(q.vertexSet());
             Subtree subtree = this.new Subtree(intersectionSet);
+            set_hash(hash, subtree);
             return subtree;
         }
         // Calculate the MAST recursively
@@ -131,19 +132,17 @@ public class MAST {
     }
 
     public Subtree get_matching(Subtree p, Subtree q){
-        Subtree matching;
         // if either one is empty return the other
         if(p.leaves.isEmpty()){
-            matching = q;
+            return q;
         }else if(q.leaves.isEmpty()){
-            matching = p;
+            return p;
         }else{
             // if not empty return new subtree with calculated total weight
             Set<Node> combined = new HashSet<>(p.leaves);
             combined.addAll(q.leaves);
-            matching = new Subtree(combined);
+            return new Subtree(combined);
         }
-        return matching;
     }
 
     private Graph<Node, DefaultEdge>[] get_e_subtrees(Graph<Node, DefaultEdge> tree, DefaultEdge edge) {
@@ -200,27 +199,64 @@ public class MAST {
         return null;
     }
 
-    public int get_hash_value(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
-        Node root1 = get_root(tree1);
-        Node root2 = get_root(tree2);
-        // Using Szudzik pairing function
-        int hash;
-        if(root1.id < root2.id){
-            hash = root1.id + root2.id^2;
+    public Node[] get_root_and_children(Graph<Node, DefaultEdge> tree){
+        if(tree.vertexSet().size()==1){
+            return new Node[]{tree.vertexSet().iterator().next()};
+        }
+        for(Node n: tree.vertexSet()){
+            if(tree.degreeOf(n)==2){
+                Node[] root_children = new Node[3];
+                root_children[0] = n;
+                int i = 1;
+                for (DefaultEdge edge : tree.edgesOf(n)) {
+                    Node child = Graphs.getOppositeVertex(tree, edge, n);
+                    root_children[i]=child;
+                    i++;
+                }
+                return root_children;
+            }
+        }
+        return null;
+    }
+
+    public long get_hash_value(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2) {
+        Node[] tree1_root_children = get_root_and_children(tree1);
+        Node[] tree2_root_children = get_root_and_children(tree2);
+        long tree1_hash = 0;
+        if(tree1_root_children.length>1){
+            tree1_hash = Szudzik(tree1_root_children[0].id, Szudzik(tree1_root_children[1].id, tree1_root_children[2].id));
         }else{
-            hash = root1.id^2 + root1.id + root2.id;
+            tree1_hash = Szudzik(tree1_root_children[0].id, 0);
+        }
+        long tree2_hash = 0;
+        if(tree2_root_children.length>1){
+            tree2_hash = Szudzik(tree2_root_children[0].id, Szudzik(tree2_root_children[1].id, tree2_root_children[2].id));
+        }else{
+            tree2_hash = Szudzik(tree2_root_children[0].id, 0);
+        }
+        long l = Szudzik(tree1_hash, tree2_hash);
+        return l;
+    }
+
+    public long Szudzik(long v1, long v2){
+        // Using Szudzik pairing function
+        long hash;
+        if(v1 < v2){
+            hash = v1 + v2*v2;
+        }else{
+            hash = v1*v1 + v1 + v2;
         }
         return hash;
     }
 
-    public Subtree get_hash(int hash){
-        if(lookupTable.containsKey(hash)){
-            return lookupTable.get(hash);
+    public Subtree get_hash(long hash){
+        if(lookupTable.containsKey((int) hash)){
+            return lookupTable.get((int) hash);
         }
         return null;
     }
-    public void set_hash(int hash, Subtree subtree){
-        lookupTable.put(hash, subtree);
+    public void set_hash(long hash, Subtree subtree){
+        lookupTable.put((int) hash, subtree);
 
     }
 
@@ -232,20 +268,22 @@ public class MAST {
         public Set<Node> subgraphNodes1 = new HashSet<>();
         public Set<Node> subgraphNodes2 = new HashSet<>();
         public double weightedSize = -Double.MAX_VALUE;
-        public Set<Node> leaves;
+        public final Set<Node> leaves;
 
-        public Subtree(Set<Node> leaves){
+        public Subtree(Set<Node> leaves) {
             this.leaves = leaves;
             getWeightedSize();
         }
 
+
         public Subtree(Subtree subtree1, Subtree subtree2) {
-            this.leaves = subtree1.leaves;
-            this.leaves.addAll(subtree2.leaves);
-            getWeightedSize();
+             Set<Node> all = new HashSet<>(subtree1.leaves);
+             all.addAll(subtree2.leaves);
+             this.leaves = all;
+             getWeightedSize();
         }
 
-        public void getWeightedSize(){
+        private void getWeightedSize(){
             weightedSize = 0;
             if(leaves.size()<=1){
                 for(Node n: leaves){

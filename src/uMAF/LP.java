@@ -48,16 +48,11 @@ public class LP {
             populate(cplex, var, rng, MAFsize);
 
             cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);
-            cplex.solve();
-            System.out.println("VALUES");
-            for (int i = 0; i < var._num; ++i) {
-                System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
-            }
-            Map<String, Double> duals = extractDuals(cplex, rng);
+
+            Map<String, Double> duals = initialDuals();
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
             IloColumn column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
-            int j=0;
             while(column != null) {
                 // Add column to cplex and solve
                 var.add(cplex.numVar(column, 0.0, 1.0, newLeafSet.toString()));
@@ -65,7 +60,8 @@ public class LP {
                 System.out.println();
                 System.out.println("VALUES");
                 for (int i = 0; i < var._num; ++i) {
-                    System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
+                    System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}   \{cplex.getBasisStatus(var.getElement(i))}");
+                    System.out.println(cplex.getReducedCosts(var.getArray())[i]);
                 }
                 // get new duals
                 duals = extractDuals(cplex, rng);
@@ -73,13 +69,14 @@ public class LP {
                 mast = new MAST(tree1, tree2, duals);
                 newLeafSet = mast.getMAST();
                 column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
-               if(j++==1){
-                   System.exit(1);
-               }
+
             }
 
 
             cplex.solve(new BranchingAndPrice(var, rng, MAFsize));
+            for (int i = 0; i < var._num; ++i) {
+                System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
+            }
 
             return cplex.getObjValue();
         }
@@ -90,12 +87,37 @@ public class LP {
 
     }
 
+    /**
+     * Get initial duals without need for solving
+     * @return
+     */
+    private Map<String, Double> initialDuals() {
+        Map<String, Double> duals = new HashMap<>();
+        for(Node n:leaves){
+            duals.put(n.name, 1.0);
+        }
+        for(int n: internal1){
+            duals.put(STR."internal\{n}", 0.0);
+        }
+        for(int n: internal2){
+            duals.put(STR."internal\{n}", 0.0);
+        }
+        return duals;
+    }
+
+    /**
+     * Get duals based on solved cplex
+     * @param cplex
+     * @param rng
+     * @return
+     * @throws IloException
+     */
     public Map<String, Double> extractDuals(IloCplex cplex, IloRange[] rng) throws IloException {
         Map<String, Double> duals = new HashMap<>();
-        System.out.println("DUALS");
+        System.out.println("DUALS  (node, dual, slack, basic) ");
         for (IloRange iloRange : rng) {
             duals.put(iloRange.getName(), cplex.getDual(iloRange));
-            System.out.println(STR."  \{iloRange.getName()} \{cplex.getDual(iloRange)}");
+            System.out.println(STR."  \{iloRange.getName()} \{cplex.getDual(iloRange)} \{cplex.getSlack(iloRange)}  \{cplex.getBasisStatus(iloRange)}");
         }
         return duals;
     }
@@ -114,13 +136,13 @@ public class LP {
 
         // Add RHS of each constraint
         for (Node leaf : leaves) {
-            rng[i++] = model.addRange(1.0, 1.0, leaf.name);
+            rng[i++] = model.addRange(1.0, Double.MAX_VALUE, leaf.name);
         }
         for (int internalNode : internal1) {
-            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, "internal" + internalNode);
+            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, STR."internal\{internalNode}");
         }
         for (int internalNode : internal2) {
-            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, "internal" + internalNode);
+            rng[i++] = model.addRange(-Double.MAX_VALUE, 1.0, STR."internal\{internalNode}");
         }
 
         // Add LHS of constraints
