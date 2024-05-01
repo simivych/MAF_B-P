@@ -19,6 +19,7 @@ public class LP {
     public final Graph<Node, DefaultEdge> tree2;
     public long startTime;
     public long duration;
+    public Dual dual;
 
     public LP(List<LeafSet> leafSets, List<Node> leaves, List<Integer> internal1, List<Integer> internal2, Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
         this.leafSets = leafSets;
@@ -27,6 +28,7 @@ public class LP {
         this.internal2 = internal2;
         this.tree1 = tree1;
         this.tree2 = tree2;
+        this.dual = new Dual(leafSets, leaves, internal1, internal2);
         startTime = System.currentTimeMillis();
         duration = 5 * 60 * 1000; // 5 minutes in milliseconds
 
@@ -49,7 +51,7 @@ public class LP {
 
             cplex.setParam(IloCplex.Param.RootAlgorithm, IloCplex.Algorithm.Primal);
 
-            Map<String, Double> duals = initialDuals();
+            Map<String, Double> duals = dual.initialDuals();
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
             IloColumn column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
@@ -61,10 +63,9 @@ public class LP {
                 System.out.println("VALUES");
                 for (int i = 0; i < var._num; ++i) {
                     System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}   \{cplex.getBasisStatus(var.getElement(i))}");
-                    System.out.println(cplex.getReducedCosts(var.getArray())[i]);
                 }
                 // get new duals
-                duals = extractDuals(cplex, rng);
+                duals = dual.extractDuals(newLeafSet);
                 // get new column
                 mast = new MAST(tree1, tree2, duals);
                 newLeafSet = mast.getMAST();
@@ -72,54 +73,18 @@ public class LP {
 
             }
 
-
             cplex.solve(new BranchingAndPrice(var, rng, MAFsize));
             for (int i = 0; i < var._num; ++i) {
                 System.out.println(STR."  Leafset\{var.getElement(i).getName()} = \{cplex.getValue(var.getElement(i))}");
             }
 
-            return cplex.getObjValue();
+            return cplex.getObjValue()-1;
         }
         catch (IloException e) {
             e.printStackTrace();
         }
-        return leaves.size();
+        return leaves.size()-1;
 
-    }
-
-    /**
-     * Get initial duals without need for solving
-     * @return
-     */
-    private Map<String, Double> initialDuals() {
-        Map<String, Double> duals = new HashMap<>();
-        for(Node n:leaves){
-            duals.put(n.name, 1.0);
-        }
-        for(int n: internal1){
-            duals.put(STR."internal\{n}", 0.0);
-        }
-        for(int n: internal2){
-            duals.put(STR."internal\{n}", 0.0);
-        }
-        return duals;
-    }
-
-    /**
-     * Get duals based on solved cplex
-     * @param cplex
-     * @param rng
-     * @return
-     * @throws IloException
-     */
-    public Map<String, Double> extractDuals(IloCplex cplex, IloRange[] rng) throws IloException {
-        Map<String, Double> duals = new HashMap<>();
-        System.out.println("DUALS  (node, dual, slack, basic) ");
-        for (IloRange iloRange : rng) {
-            duals.put(iloRange.getName(), cplex.getDual(iloRange));
-            System.out.println(STR."  \{iloRange.getName()} \{cplex.getDual(iloRange)} \{cplex.getSlack(iloRange)}  \{cplex.getBasisStatus(iloRange)}");
-        }
-        return duals;
     }
 
     /**
@@ -197,37 +162,6 @@ public class LP {
     }
 
     /**
-     * A class that is an extendable array (so number of variables can grow)
-     */
-    static class IloNumVarArray {
-        int _num           = 0;
-        IloNumVar[] _array = new IloNumVar[60];
-
-        void add(IloNumVar ivar) {
-            if ( _num >= _array.length ) {
-                IloNumVar[] array = new IloNumVar[2 * _array.length];
-                System.arraycopy(_array, 0, array, 0, _num);
-                _array = array;
-            }
-            _array[_num++] = ivar;
-        }
-
-        IloNumVar getElement(int i) {
-            return _array[i];
-        }
-        int getSize() {
-            return _num;
-        }
-        IloNumVar[] getArray(){
-            IloNumVar[] array = new IloNumVar[_num];
-            for(int i=0;i<_num;i++){
-                array[i]=_array[i];
-            }
-            return array;
-        }
-    }
-
-    /**
      * Branching interface
      */
     public class BranchingAndPrice  extends IloCplex.Goal{
@@ -249,13 +183,13 @@ public class LP {
          */
         public IloCplex.Goal execute(IloCplex cplex) throws IloException {
             // Add columns until none add to the objective function
-            LeafSet newLeafSet = getMAST(cplex);
+            LeafSet newLeafSet = getMAST();
             IloColumn column = getColumn(cplex, newLeafSet);
             while(column != null) {
                 // Add column to cplex and get new
                 vars.add(cplex.numVar(column, 0.0, 1.0, newLeafSet.toString()));
                 cplex.solve();
-                newLeafSet = getMAST(cplex);
+                newLeafSet = getMAST(newLeafSet);
                 column = getColumn(cplex, newLeafSet);
             }
 
@@ -284,8 +218,15 @@ public class LP {
                 return null;
         }
 
-        private LeafSet getMAST(IloCplex cplex) throws IloException {
-            Map<String, Double> duals = extractDuals(cplex, rng);
+        private LeafSet getMAST(LeafSet newLeafset) throws IloException {
+            Map<String, Double> duals = dual.extractDuals(newLeafset);
+            MAST mast = new MAST(tree1, tree2, duals);
+            LeafSet newLeafSet = mast.getMAST();
+            return newLeafSet;
+        }
+
+        private LeafSet getMAST() throws IloException {
+            Map<String, Double> duals = dual.extractDuals();
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
             return newLeafSet;
