@@ -30,10 +30,10 @@ public class LoadFiles {
         return tree_strings;
     }
 
-    public static Graph<Node, DefaultEdge>[] get_trees(String file){
+    public static Graph<TreeNode, DefaultEdge>[] get_trees(String file){
         String[] tree_strings = read(file);
-        Graph<Node, DefaultEdge> graph1 = convert(tree_strings[0]);
-        Graph<Node, DefaultEdge> graph2 = convert(tree_strings[1]);
+        Graph<TreeNode, DefaultEdge> graph1 = convert(tree_strings[0]);
+        Graph<TreeNode, DefaultEdge> graph2 = convert(tree_strings[1]);
 
         return new Graph[]{graph1, graph2};
 
@@ -61,16 +61,16 @@ public class LoadFiles {
      * @param newick
      * @return
      */
-    public static Graph<Node, DefaultEdge> convert(String newick) {
-        DefaultUndirectedGraph<Node, DefaultEdge> graph = new DefaultUndirectedGraph<>(DefaultEdge.class);
-        Stack<Node> stack = new Stack<>();
+    public static Graph<TreeNode, DefaultEdge> convert(String newick) {
+        DefaultUndirectedGraph<TreeNode, DefaultEdge> graph = new DefaultUndirectedGraph<>(DefaultEdge.class);
+        Stack<TreeNode> stack = new Stack<>();
         for (int i=0; i<newick.length();i++){
             char c = newick.charAt(i);
             if (c == '(') {
-                Node n = new Node();
+                TreeNode n = new TreeNode();
                 graph.addVertex(n);
                 if(!stack.isEmpty()){
-                    Node parent = stack.peek();
+                    TreeNode parent = stack.peek();
                     graph.addEdge(parent, n);
                 }
                 stack.push(n);
@@ -84,9 +84,9 @@ public class LoadFiles {
                     i++;
                 }
 
-                Node node = new Node(node_builder.toString());
+                TreeNode node = new TreeNode(node_builder.toString());
                 graph.addVertex(node);
-                Node parent = stack.peek();
+                TreeNode parent = stack.peek();
                 graph.addEdge(parent, node);
             }
         }

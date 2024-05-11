@@ -6,20 +6,19 @@ import org.jgrapht.graph.DefaultEdge;
 import java.util.*;
 
 public class BandP {
-    public Graph<Node, DefaultEdge> tree1;
-    public Graph<Node, DefaultEdge> tree2;
-    public List<Node> leaves;
+    public Graph<TreeNode, DefaultEdge> tree1;
+    public Graph<TreeNode, DefaultEdge> tree2;
+    public List<TreeNode> leaves;
     public List<Integer> internal1;
     public List<Integer> internal2;
     public double solution;
 
-    public BandP(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
+    public BandP(Graph<TreeNode, DefaultEdge> tree1, Graph<TreeNode, DefaultEdge> tree2){
         this.tree1 = tree1;
         this.tree2 = tree2;
         solve();
 
     }
-
     /**
      * Creates initail leaf sets (individual leaves to ensure feasibility)
      * and calls LP to solve with BandP
@@ -28,7 +27,7 @@ public class BandP {
         // initialise individual leaves as leafsets to ensure feasibility
         leaves = new ArrayList<>();
         internal1 = new ArrayList<>();
-        for (Node node: tree1.vertexSet()){
+        for (TreeNode node: tree1.vertexSet()){
             if(!node.isInternal()){
                 leaves.add(node);
             }else{
@@ -36,14 +35,14 @@ public class BandP {
             }
         }
         internal2 = new ArrayList<>();
-        for (Node node: tree2.vertexSet()){
+        for (TreeNode node: tree2.vertexSet()){
             if(node.isInternal()){
                 internal2.add(node.id);
             }
         }
         List<LeafSet> initialLeafSets = new ArrayList<>();
-        for(Node leaf : leaves){
-            Set<Node> leafNode = new HashSet<>();
+        for(TreeNode leaf : leaves){
+            Set<TreeNode> leafNode = new HashSet<>();
             leafNode.add(leaf);
             LeafSet leafSet = new LeafSet(tree1, tree2, leafNode);
             initialLeafSets.add(leafSet);

@@ -3,8 +3,6 @@ package uMAF;
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
 
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.jgrapht.Graph;
@@ -12,16 +10,16 @@ import org.jgrapht.graph.DefaultEdge;
 
 public class LP {
     public List<LeafSet> leafSets;
-    public final List<Node> leaves;
+    public final List<TreeNode> leaves;
     public final List<Integer> internal1;
     public final List<Integer> internal2;
-    public final Graph<Node, DefaultEdge> tree1;
-    public final Graph<Node, DefaultEdge> tree2;
+    public final Graph<TreeNode, DefaultEdge> tree1;
+    public final Graph<TreeNode, DefaultEdge> tree2;
     public long startTime;
     public long duration;
     public Dual dual;
 
-    public LP(List<LeafSet> leafSets, List<Node> leaves, List<Integer> internal1, List<Integer> internal2, Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2){
+    public LP(List<LeafSet> leafSets, List<TreeNode> leaves, List<Integer> internal1, List<Integer> internal2, Graph<TreeNode, DefaultEdge> tree1, Graph<TreeNode, DefaultEdge> tree2){
         this.leafSets = leafSets;
         this.leaves = leaves;
         this.internal1 = internal1;
@@ -54,6 +52,8 @@ public class LP {
             Map<String, Double> duals = dual.initialDuals();
             MAST mast = new MAST(tree1, tree2, duals);
             LeafSet newLeafSet = mast.getMAST();
+            System.out.println(newLeafSet.leaves);
+            System.out.println(newLeafSet.is_valid());
             IloColumn column = leafSetColumn(newLeafSet, cplex, MAFsize, rng);
             while(column != null) {
                 // Add column to cplex and solve
@@ -100,7 +100,7 @@ public class LP {
         int i = 0;
 
         // Add RHS of each constraint
-        for (Node leaf : leaves) {
+        for (TreeNode leaf : leaves) {
             rng[i++] = model.addRange(1.0, Double.MAX_VALUE, leaf.name);
         }
         for (int internalNode : internal1) {
@@ -132,7 +132,7 @@ public class LP {
         }
         IloColumn column = model.column(MAFsize, 1.0);
         int i = 0;
-        for (Node leaf : leaves) {
+        for (TreeNode leaf : leaves) {
             if(leafSet.contains(leaf)){
                 //System.out.println("Contains "+leaf.name);
                 column = column.and(model.column(rng[i++], 1.0));
@@ -183,6 +183,7 @@ public class LP {
          */
         public IloCplex.Goal execute(IloCplex cplex) throws IloException {
             // Add columns until none add to the objective function
+            System.out.println("BRANCHING");
             LeafSet newLeafSet = getMAST();
             IloColumn column = getColumn(cplex, newLeafSet);
             while(column != null) {
