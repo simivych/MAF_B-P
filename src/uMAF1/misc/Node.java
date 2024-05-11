@@ -1,17 +1,17 @@
-package uMAF;
+package uMAF1.misc;
 
-public class TreeNode {
+public class Node {
     public static int prev = 501; // MAKE SURE THIS IS ABOVE THE NUMBER OF LEAF NODES
     public int id; // unique to each node
     public String name = ""; // label of leaf node (empty if internal)
 
-    public TreeNode(){
+    public Node(){
         this.id = prev;
         prev++;
         this.name = STR."internal\{id}";;
     }
 
-    public TreeNode(String name){
+    public Node(String name){
         this.id = Integer.parseInt(name);
         this.name = name;
     }
@@ -20,7 +20,7 @@ public class TreeNode {
         if (object == null || object.getClass() != getClass()) {
             return false;
         } else {
-            TreeNode node = (TreeNode) object;
+            Node node = (Node) object;
             return this.id == node.id;
         }
     }
@@ -28,7 +28,7 @@ public class TreeNode {
         if (object == null || object.getClass() != getClass()) {
             return false;
         }
-        TreeNode node = (TreeNode) object;
+        Node node = (Node) object;
         if(node.isInternal()&&isInternal()) {
             return true;
         } else {
@@ -48,3 +48,4 @@ public class TreeNode {
         return name.contains("internal");
     }
 }
+

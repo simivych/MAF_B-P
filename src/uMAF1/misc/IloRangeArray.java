@@ -1,6 +1,6 @@
-package uMAF;
+package uMAF1.misc;
 
-import ilog.concert.IloNumVar;
+
 import ilog.concert.IloRange;
 
 public class IloRangeArray {
@@ -8,7 +8,7 @@ public class IloRangeArray {
     int _num           = 0;
     IloRange[] _array = new IloRange[60];
 
-    void add(IloRange ivar) {
+    public void add(IloRange ivar) {
         if ( _num >= _array.length ) {
             IloRange[] array = new IloRange[2 * _array.length];
             System.arraycopy(_array, 0, array, 0, _num);

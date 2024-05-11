@@ -1,4 +1,4 @@
-package uMAF;
+package uMAF1.colgen;
 
 import org.jgrapht.Graph;
 import org.jgrapht.GraphPath;
@@ -6,38 +6,54 @@ import org.jgrapht.Graphs;
 import org.jgrapht.alg.shortestpath.BFSShortestPath;
 import org.jgrapht.graph.DefaultEdge;
 import org.jgrapht.graph.DefaultUndirectedGraph;
+import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolver;
+import uMAF1.misc.Node;
+import uMAF1.model.*;
 
 import java.util.*;
 
-public class MAST {
-    Graph<TreeNode, DefaultEdge> tree1;
-    Graph<TreeNode, DefaultEdge> tree2;
-    Map<String, Double> duals;
+public final class MASTSolver extends AbstractPricingProblemSolver<MAF, Leafset, MAST> {
+
     Map<Integer, Subtree> lookupTable = new HashMap<>();
-    int used_hashed = 0;
-    public MAST(Graph<TreeNode, DefaultEdge> tree1, Graph<TreeNode, DefaultEdge> tree2, Map<String, Double> duals){
-        this.tree1 = tree1;
-        this.tree2 = tree2;
-        this.duals = duals;
+    double[] duals;
+
+    public MASTSolver(MAF dataModel, MAST mast) {
+        super(dataModel, mast);
     }
 
-    /**
-     * Method call to get MAST
-     * Does initial spilts into rooted trees and calls solveMAST
-     * @return Leafset
-     */
-    public LeafSet getMAST(){
+    @Override
+    public void close() {
+        ;
+    }
+
+    @Override
+    protected List<Leafset> generateNewColumns() {
+        List<Leafset> newleafsets=new ArrayList<>();
+        System.out.println("Generating");
+        duals = this.pricingProblem.dualCosts;
+        Leafset newLS = getMAST();
+        System.out.println(newLS);
+        if(newLS!=null)
+            newleafsets.add(newLS);
+        return newleafsets;
+    }
+
+    @Override
+    protected void setObjective() {
+        ;
+    }
+    public Leafset getMAST(){
         // initial split into rooted subtrees
         double max_size = -Double.MAX_VALUE;
         Subtree MAST = null;
-        for(DefaultEdge e1: tree1.edgeSet()){
-            Graph<TreeNode, DefaultEdge>[] p = get_e_subtrees(tree1, e1);
-            Graph<TreeNode, DefaultEdge> p1 = p[0];
-            Graph<TreeNode, DefaultEdge> p2 = p[1];
-            for(DefaultEdge e2: tree2.edgeSet()){
-                Graph<TreeNode, DefaultEdge>[] q = get_e_subtrees(tree2, e2);
-                Graph<TreeNode, DefaultEdge> q1 = q[0];
-                Graph<TreeNode, DefaultEdge> q2 = q[1];
+        for(DefaultEdge e1: dataModel.tree1.edgeSet()){
+            Graph<Node, DefaultEdge>[] p = get_e_subtrees(dataModel.tree1, e1);
+            Graph<Node, DefaultEdge> p1 = p[0];
+            Graph<Node, DefaultEdge> p2 = p[1];
+            for(DefaultEdge e2: dataModel.tree2.edgeSet()){
+                Graph<Node, DefaultEdge>[] q = get_e_subtrees(dataModel.tree2, e2);
+                Graph<Node, DefaultEdge> q1 = q[0];
+                Graph<Node, DefaultEdge> q2 = q[1];
 
                 Subtree subtree1 = solveMAST(p1,q1);
                 Subtree subtree2 = solveMAST(p2,q2);
@@ -60,7 +76,7 @@ public class MAST {
         if(MAST==null || max_size <= 1 ){
             return null;
         }
-        return new LeafSet(tree1, tree2, MAST.leaves, MAST.subgraphNodes1, MAST.subgraphNodes2);
+        return new Leafset("pricing", false, MAST.leaves, pricingProblem);
     }
 
     /**
@@ -69,30 +85,29 @@ public class MAST {
      * @param q
      * @return
      */
-    public Subtree solveMAST(Graph<TreeNode, DefaultEdge> p, Graph<TreeNode, DefaultEdge> q){
+    public Subtree solveMAST(Graph<Node, DefaultEdge> p, Graph<Node, DefaultEdge> q){
         // If it has already been calculated return previous result
         long hash = get_hash_value(p,q);
         Subtree hased_subtree = get_hash(hash);
         if (hased_subtree!=null){
-            used_hashed++;
             return hased_subtree;
         }
         // if one of the trees is a single node return the intersection
         if (p.vertexSet().size() <= 3 || q.vertexSet().size() <= 3) {
-            Set<TreeNode> intersectionSet = new HashSet<>(p.vertexSet());
+            Set<Node> intersectionSet = new HashSet<>(p.vertexSet());
             intersectionSet.retainAll(q.vertexSet());
             Subtree subtree = this.new Subtree(intersectionSet);
             set_hash(hash, subtree);
             return subtree;
         }
         // Calculate the MAST recursively
-        Graph<TreeNode, DefaultEdge>[] p_sub = get_e_subtrees(p);
-        Graph<TreeNode, DefaultEdge>[] q_sub = get_e_subtrees(q);
+        Graph<Node, DefaultEdge>[] p_sub = get_e_subtrees(p);
+        Graph<Node, DefaultEdge>[] q_sub = get_e_subtrees(q);
 
         double max_weight = -Double.MAX_VALUE;
         Subtree max_subtree = null;
 
-        for(Graph<TreeNode, DefaultEdge> q_prime: q_sub){
+        for(Graph<Node, DefaultEdge> q_prime: q_sub){
             Subtree p_qprime = solveMAST(p, q_prime);
             if(max_weight<p_qprime.weightedSize){
                 max_weight = p_qprime.weightedSize;
@@ -100,7 +115,7 @@ public class MAST {
             }
 
         }
-        for(Graph<TreeNode, DefaultEdge> p_prime: p_sub){
+        for(Graph<Node, DefaultEdge> p_prime: p_sub){
             Subtree pprime_q = solveMAST(p_prime, q);
             if(max_weight<pprime_q.weightedSize){
                 max_weight = pprime_q.weightedSize;
@@ -130,38 +145,38 @@ public class MAST {
         return max_subtree;
     }
 
-    private Graph<TreeNode, DefaultEdge>[] get_e_subtrees(Graph<TreeNode, DefaultEdge> tree, DefaultEdge edge) {
-        TreeNode root1 = tree.getEdgeSource(edge);
-        TreeNode root2 = tree.getEdgeTarget(edge);
-        Graph<TreeNode, DefaultEdge> e_subtrees1 = dfs(tree, root1, edge);
-        Graph<TreeNode, DefaultEdge> e_subtrees2 = dfs(tree, root2, edge);
-        Graph<TreeNode, DefaultEdge>[] e_subtrees = new Graph[]{e_subtrees1, e_subtrees2};
+    private Graph<Node, DefaultEdge>[] get_e_subtrees(Graph<Node, DefaultEdge> tree, DefaultEdge edge) {
+        Node root1 = tree.getEdgeSource(edge);
+        Node root2 = tree.getEdgeTarget(edge);
+        Graph<Node, DefaultEdge> e_subtrees1 = dfs(tree, root1, edge);
+        Graph<Node, DefaultEdge> e_subtrees2 = dfs(tree, root2, edge);
+        Graph<Node, DefaultEdge>[] e_subtrees = new Graph[]{e_subtrees1, e_subtrees2};
         return e_subtrees;
     }
 
-    private Graph<TreeNode, DefaultEdge>[] get_e_subtrees(Graph<TreeNode, DefaultEdge> tree) {
-        TreeNode root = get_root(tree);
-        Graph<TreeNode, DefaultEdge>[] e_subtrees = new Graph[2];
+    private Graph<Node, DefaultEdge>[] get_e_subtrees(Graph<Node, DefaultEdge> tree) {
+        Node root = get_root(tree);
+        Graph<Node, DefaultEdge>[] e_subtrees = new Graph[2];
         int i = 0;
         for(DefaultEdge edge: tree.edgesOf(root)){
-            TreeNode n = Graphs.getOppositeVertex(tree, edge, root);
+            Node n = Graphs.getOppositeVertex(tree, edge, root);
             e_subtrees[i] = dfs(tree, n, edge);
             i++;
         }
         return e_subtrees;
     }
 
-    private Graph<TreeNode, DefaultEdge> dfs(Graph<TreeNode, DefaultEdge> tree, TreeNode root, DefaultEdge removing_edge) {
-        Stack<TreeNode> stack = new Stack<>();
+    private Graph<Node, DefaultEdge> dfs(Graph<Node, DefaultEdge> tree, Node root, DefaultEdge removing_edge) {
+        Stack<Node> stack = new Stack<>();
         stack.push(root);
-        DefaultUndirectedGraph<TreeNode, DefaultEdge> e_subtree = new DefaultUndirectedGraph<>(DefaultEdge.class);
+        DefaultUndirectedGraph<Node, DefaultEdge> e_subtree = new DefaultUndirectedGraph<>(DefaultEdge.class);
         e_subtree.addVertex(root);
 
         while (!stack.isEmpty()) {
-            TreeNode parent = stack.pop();
+            Node parent = stack.pop();
             for (DefaultEdge edge : tree.edgesOf(parent)) {
                 if(!edge.equals(removing_edge)){
-                    TreeNode child = Graphs.getOppositeVertex(tree, edge, parent);
+                    Node child = Graphs.getOppositeVertex(tree, edge, parent);
                     if(!e_subtree.containsVertex(child)) {
                         e_subtree.addVertex(child);
                         e_subtree.addEdge(parent, child);
@@ -172,11 +187,11 @@ public class MAST {
         }
         return e_subtree;
     }
-    public TreeNode get_root(Graph<TreeNode, DefaultEdge> tree){
+    public Node get_root(Graph<Node, DefaultEdge> tree){
         if(tree.vertexSet().size()==1){
             return tree.vertexSet().iterator().next();
         }
-        for(TreeNode n: tree.vertexSet()){
+        for(Node n: tree.vertexSet()){
             if(tree.degreeOf(n)==2){
                 return n;
             }
@@ -184,17 +199,17 @@ public class MAST {
         return null;
     }
 
-    public TreeNode[] get_root_and_children(Graph<TreeNode, DefaultEdge> tree){
+    public Node[] get_root_and_children(Graph<Node, DefaultEdge> tree){
         if(tree.vertexSet().size()==1){
-            return new TreeNode[]{tree.vertexSet().iterator().next()};
+            return new Node[]{tree.vertexSet().iterator().next()};
         }
-        for(TreeNode n: tree.vertexSet()){
+        for(Node n: tree.vertexSet()){
             if(tree.degreeOf(n)==2){
-                TreeNode[] root_children = new TreeNode[3];
+                Node[] root_children = new Node[3];
                 root_children[0] = n;
                 int i = 1;
                 for (DefaultEdge edge : tree.edgesOf(n)) {
-                    TreeNode child = Graphs.getOppositeVertex(tree, edge, n);
+                    Node child = Graphs.getOppositeVertex(tree, edge, n);
                     root_children[i]=child;
                     i++;
                 }
@@ -204,9 +219,9 @@ public class MAST {
         return null;
     }
 
-    public long get_hash_value(Graph<TreeNode, DefaultEdge> tree1, Graph<TreeNode, DefaultEdge> tree2) {
-        TreeNode[] tree1_root_children = get_root_and_children(tree1);
-        TreeNode[] tree2_root_children = get_root_and_children(tree2);
+    public long get_hash_value(Graph<Node, DefaultEdge> tree1, Graph<Node, DefaultEdge> tree2) {
+        Node[] tree1_root_children = get_root_and_children(tree1);
+        Node[] tree2_root_children = get_root_and_children(tree2);
         long tree1_hash;
         if(tree1_root_children.length>1){
             tree1_hash = Szudzik(tree1_root_children[0].id, Szudzik(tree1_root_children[1].id, tree1_root_children[2].id));
@@ -247,61 +262,61 @@ public class MAST {
 
     /**
      * A class that will store the leaf set and its weight of a partial MAST
-      */
+     */
 
     public class Subtree {
-        public Set<TreeNode> subgraphNodes1 = new HashSet<>();
-        public Set<TreeNode> subgraphNodes2 = new HashSet<>();
+        public Set<Node> subgraphNodes1 = new HashSet<>();
+        public Set<Node> subgraphNodes2 = new HashSet<>();
         public double weightedSize = -Double.MAX_VALUE;
-        public final Set<TreeNode> leaves;
+        public final Set<Node> leaves;
 
-        public Subtree(Set<TreeNode> leaves) {
+        public Subtree(Set<Node> leaves) {
             this.leaves = leaves;
             getWeightedSize();
         }
 
 
         public Subtree(Subtree subtree1, Subtree subtree2) {
-             Set<TreeNode> all = new HashSet<>(subtree1.leaves);
-             all.addAll(subtree2.leaves);
-             this.leaves = all;
-             getWeightedSize();
+            Set<Node> all = new HashSet<>(subtree1.leaves);
+            all.addAll(subtree2.leaves);
+            this.leaves = all;
+            getWeightedSize();
         }
 
         private void getWeightedSize(){
             weightedSize = 0;
             if(leaves.size()<=1){
-                for(TreeNode n: leaves){
-                    weightedSize += duals.get(n.name);
+                for(Node n: leaves){
+                    weightedSize += duals[n.id];
                 }
             }else {
-                subgraphNodes1= getInternalNodes(tree1);
-                subgraphNodes2 = getInternalNodes(tree2);
-                for (TreeNode n : subgraphNodes1) {
-                    weightedSize += duals.get(n.name);
+                subgraphNodes1= getInternalNodes(dataModel.tree1);
+                subgraphNodes2 = getInternalNodes(dataModel.tree2);
+                for (Node n : subgraphNodes1) {
+                    weightedSize += duals[n.id];
                 }
-                for (TreeNode n : subgraphNodes2) {
-                    weightedSize += duals.get(n.name);
+                for (Node n : subgraphNodes2) {
+                    weightedSize += duals[n.id];
                 }
-                for (TreeNode n : leaves) {
-                    weightedSize += duals.get(n.name);
+                for (Node n : leaves) {
+                    weightedSize += duals[n.id];
                 }
             }
         }
 
-        public Set<TreeNode> getInternalNodes(Graph<TreeNode, DefaultEdge> tree){
-            Set<TreeNode> internal = new HashSet<>();
-            List<TreeNode> leafNodesList = new ArrayList<>(leaves);
-            TreeNode node1 = leafNodesList.getFirst();
+        public Set<Node> getInternalNodes(Graph<Node, DefaultEdge> tree){
+            Set<Node> internal = new HashSet<>();
+            List<Node> leafNodesList = new ArrayList<>(leaves);
+            Node node1 = leafNodesList.getFirst();
 
-            for (TreeNode node : leaves) {
+            for (Node node : leaves) {
                 if(!node.equals(node1)) {
-                    BFSShortestPath<TreeNode, DefaultEdge> BFSShortestPath = new BFSShortestPath<TreeNode, DefaultEdge>(tree);
-                    GraphPath<TreeNode, DefaultEdge> shortestPath = BFSShortestPath.getPath(node, node1);
-                    List<TreeNode> pathNodes = shortestPath.getVertexList();
+                    BFSShortestPath<Node, DefaultEdge> BFSShortestPath = new BFSShortestPath<Node, DefaultEdge>(tree);
+                    GraphPath<Node, DefaultEdge> shortestPath = BFSShortestPath.getPath(node, node1);
+                    List<Node> pathNodes = shortestPath.getVertexList();
                     pathNodes.remove(shortestPath.getEndVertex());
                     pathNodes.remove(shortestPath.getStartVertex());
-                    for (TreeNode pathNode : pathNodes) {
+                    for (Node pathNode : pathNodes) {
                         if (!internal.contains(pathNode)) {
                             internal.add(pathNode);
                         }
@@ -312,4 +327,5 @@ public class MAST {
             return internal;
         }
     }
+
 }

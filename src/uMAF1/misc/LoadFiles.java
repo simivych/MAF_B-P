@@ -1,4 +1,4 @@
-package uMAF;
+package uMAF1.misc;
 
 import org.jgrapht.Graph;
 import org.jgrapht.graph.DefaultEdge;
@@ -30,10 +30,10 @@ public class LoadFiles {
         return tree_strings;
     }
 
-    public static Graph<TreeNode, DefaultEdge>[] get_trees(String file){
+    public static Graph<Node, DefaultEdge>[] get_trees(String file){
         String[] tree_strings = read(file);
-        Graph<TreeNode, DefaultEdge> graph1 = convert(tree_strings[0]);
-        Graph<TreeNode, DefaultEdge> graph2 = convert(tree_strings[1]);
+        Graph<Node, DefaultEdge> graph1 = convert(tree_strings[0]);
+        Graph<Node, DefaultEdge> graph2 = convert(tree_strings[1]);
 
         return new Graph[]{graph1, graph2};
 
@@ -61,16 +61,16 @@ public class LoadFiles {
      * @param newick
      * @return
      */
-    public static Graph<TreeNode, DefaultEdge> convert(String newick) {
-        DefaultUndirectedGraph<TreeNode, DefaultEdge> graph = new DefaultUndirectedGraph<>(DefaultEdge.class);
-        Stack<TreeNode> stack = new Stack<>();
+    public static Graph<Node, DefaultEdge> convert(String newick) {
+        DefaultUndirectedGraph<Node, DefaultEdge> graph = new DefaultUndirectedGraph<>(DefaultEdge.class);
+        Stack<Node> stack = new Stack<>();
         for (int i=0; i<newick.length();i++){
             char c = newick.charAt(i);
             if (c == '(') {
-                TreeNode n = new TreeNode();
+                Node n = new Node();
                 graph.addVertex(n);
                 if(!stack.isEmpty()){
-                    TreeNode parent = stack.peek();
+                    Node parent = stack.peek();
                     graph.addEdge(parent, n);
                 }
                 stack.push(n);
@@ -84,9 +84,9 @@ public class LoadFiles {
                     i++;
                 }
 
-                TreeNode node = new TreeNode(node_builder.toString());
+                Node node = new Node(node_builder.toString());
                 graph.addVertex(node);
-                TreeNode parent = stack.peek();
+                Node parent = stack.peek();
                 graph.addEdge(parent, node);
             }
         }

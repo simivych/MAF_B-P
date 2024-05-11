@@ -1,0 +1,11 @@
+<component name="libraryTable">
+  <library name="google.guava.tests" type="repository">
+    <properties maven-id="com.google.guava:guava-tests:14.0.1" />
+    <ANNOTATIONS />
+    <CLASSES>
+      <root url="file://$MAVEN_REPOSITORY$/com/google/guava/guava/14.0.1" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
