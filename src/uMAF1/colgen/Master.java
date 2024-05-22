@@ -2,6 +2,7 @@ package uMAF1.colgen;
 
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
+import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
 import org.jorlib.frameworks.columnGeneration.master.OptimizationSense;
@@ -13,11 +14,6 @@ import uMAF1.model.MAF;
 import java.util.*;
 
 public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
-
-    IloCplex cplex; //Cplex instance
-    private IloObjective obj; //Objective function
-    private IloRange[] rng; //Constraint
-    private IloNumVarArray var;
     Duals duals;
 
     public Master(MAF dataModel, MAST pricingProblem) {
@@ -30,17 +26,19 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
      */
     @Override
     protected MAFData buildModel() {
-        try {
-            cplex =new IloCplex(); //Create cplex instance
+        IloObjective obj = null;
+        IloRange[] rng = new IloRange[dataModel.leaves.size()+dataModel.internal1.size()+dataModel.internal2.size()];
+        IloNumVarArray var = new IloNumVarArray();
+        IloCplex cplex = null;
+        try{
+            cplex = new IloCplex();
             cplex.setOut(null); //Disable cplex output
             cplex.setParam(IloCplex.IntParam.Threads, config.MAXTHREADS); //Set number of threads that may be used by the cplex
 
             //Define the objective
-            obj= cplex.addMinimize();
-            rng = new IloRange[dataModel.leaves.size()+dataModel.internal1.size()+dataModel.internal2.size()];
-            var = new IloNumVarArray();
-            int i = 0;
+            obj = cplex.addMinimize();
 
+            int i = 0;
             // Add RHS of each constraint
             for (Node leaf : dataModel.leaves) {
                 rng[i++] = cplex.addRange(1.0, Double.MAX_VALUE, leaf.name);
@@ -61,7 +59,7 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
 
         //Return a new data object which will hold data from the Master Problem. Since we are not working with inequalities in this example,
         //we can simply return the default.
-        return new MAFData(varMap);
+        return new MAFData(cplex, obj, rng, var, varMap);
     }
 
     /**
@@ -72,18 +70,22 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
         try {
             //Set time limit
             double timeRemaining=Math.max(1,(timeLimit-System.currentTimeMillis())/1000.0);
-            cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
+            masterData.cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
             //Potentially export the model
-            if(config.EXPORT_MODEL) cplex.exportModel(config.EXPORT_MASTER_DIR+"master_"+this.getIterationCount()+".lp");
+            if(config.EXPORT_MODEL) masterData.cplex.exportModel(config.EXPORT_MASTER_DIR+"master_"+this.getIterationCount()+".lp");
 
             //Solve the model
-            if(!cplex.solve() || cplex.getStatus()!=IloCplex.Status.Optimal){
-                if(cplex.getCplexStatus()==IloCplex.CplexStatus.AbortTimeLim) //Aborted due to time limit
+            if(!masterData.cplex.solve() || masterData.cplex.getStatus()!=IloCplex.Status.Optimal){
+                if(masterData.cplex.getCplexStatus()==IloCplex.CplexStatus.AbortTimeLim) //Aborted due to time limit
                     throw new TimeLimitExceededException();
                 else
-                    throw new RuntimeException("Master problem solve failed! Status: "+ cplex.getStatus());
+                    System.out.println("USED");
+                    for(IloNumVar var : masterData.var.getArray()){
+                        System.out.println(var.getName());
+                    }
+                    throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
             }else{
-                masterData.objectiveValue= cplex.getObjValue();
+                masterData.objectiveValue= masterData.cplex.getObjValue();
             }
         } catch (IloException e) {
             e.printStackTrace();
@@ -101,35 +103,30 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
     }
 
     public IloColumn getColumn(Leafset leafSet) throws IloException {
-        IloColumn column = cplex.column(obj, 1.0);
+        IloColumn column = masterData.cplex.column(masterData.obj, 1.0);
         if(leafSet==null){
             return column;
         }
         int i = 0;
         for (Node leaf : dataModel.leaves) {
             if(leafSet.contains(leaf)){
-                //System.out.println("Contains "+leaf.name);
-                column = column.and(cplex.column(rng[i++], 1.0));
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 1.0));
             }else{
-                column = column.and(cplex.column(rng[i++], 0.0));
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 0.0));
             }
         }
         for (int internalNode : dataModel.internal1) {
-            if(leafSet.has_internal(internalNode, dataModel.tree1)){
-                //System.out.println("Contains internal"+internalNode);
-                column = column.and(cplex.column(rng[i++], 1.0));
+            if(leafSet.has_internal(internalNode, dataModel.tree1, 2)){
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 1.0));
             }else{
-                //System.out.println("Doesnt contain internal"+internalNode);
-                column = column.and(cplex.column(rng[i++], 0.0));
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 0.0));
             }
         }
         for (int internalNode : dataModel.internal2) {
-            if(leafSet.has_internal(internalNode, dataModel.tree2)){
-                //System.out.println("Contains internal"+internalNode);
-                column = column.and(cplex.column(rng[i++], 1.0));
+            if(leafSet.has_internal(internalNode, dataModel.tree2, 2)){
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 1.0));
             }else{
-                //System.out.println("Doesnt contain internal"+internalNode);
-                column = column.and(cplex.column(rng[i++], 0.0));
+                column = column.and(masterData.cplex.column(masterData.rng[i++], 0.0));
             }
         }
         return column;
@@ -143,9 +140,9 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             IloColumn column = getColumn(leafset);
             duals.addLeafset(leafset);
             //Create the variable and store it
-            IloNumVar variable= cplex.numVar(column, 0.0,1.0, IloNumVarType.Float, leafset.leaves.toString());
-            var.add(variable);
-            cplex.add(variable);
+            IloNumVar variable= masterData.cplex.numVar(column, 0.0,1.0, IloNumVarType.Float, leafset.leaves.toString());
+            masterData.var.add(variable);
+            masterData.cplex.add(variable);
             masterData.addColumn(leafset, variable);
             dataModel.leafSets.add(leafset);
         } catch (IloException e) {
@@ -159,8 +156,8 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
     public List<Leafset> getSolution() {
         List<Leafset> solution=new ArrayList<>();
         try {
-            for(IloNumVar variable:var.getArray()) {
-                if (cplex.getValue(variable) != 0) {
+            for(IloNumVar variable:masterData.var.getArray()) {
+                if (masterData.cplex.getValue(variable) != 0) {
                     for (Leafset leafset : dataModel.leafSets) {
                         if (variable.getName().equals(leafset.leaves.toString())) {
                             solution.add(leafset);
@@ -183,7 +180,7 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
      */
     @Override
     public void close() {
-        cplex.end();
+        masterData.cplex.end();
     }
 
     /**
@@ -196,13 +193,20 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             System.out.println(cp);
     }
 
+    @Override
+    public void branchingDecisionPerformed(BranchingDecision bd) {
+        //For simplicity, we simply destroy the master problem and rebuild it. Of course, something more sophisticated may be used which retains the master problem.
+        this.close(); //Close the old cplex model
+        masterData=this.buildModel(); //Create a new model without any columns
+    }
+
     /**
      * Export the model to a file
      */
     @Override
     public void exportModel(String fileName){
         try {
-            cplex.exportModel(config.EXPORT_MASTER_DIR + fileName);
+            masterData.cplex.exportModel(config.EXPORT_MASTER_DIR + fileName);
         } catch (IloException e) {
             e.printStackTrace();
         }

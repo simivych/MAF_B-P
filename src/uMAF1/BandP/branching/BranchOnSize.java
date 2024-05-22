@@ -3,12 +3,12 @@ package uMAF1.BandP.branching;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.AbstractBranchCreator;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.BAPNode;
 
-import java.util.Arrays;
-import java.util.List;
+import java.util.*;
 
 
 import uMAF1.colgen.Leafset;
 import uMAF1.colgen.MAST;
+import uMAF1.misc.Node;
 import uMAF1.model.MAF;
 
 
@@ -21,7 +21,7 @@ import uMAF1.model.MAF;
 public final class BranchOnSize extends AbstractBranchCreator<MAF, Leafset, MAST> {
 
     /** Pair of vertices to branch on **/
-    Leafset candidateVertexPair=null;
+    Leafset candidateLeafset =null;
 
     public BranchOnSize(MAF dataModel, MAST pricingProblem) {
         super(dataModel, pricingProblem);
@@ -35,10 +35,29 @@ public final class BranchOnSize extends AbstractBranchCreator<MAF, Leafset, MAST
     @Override
     protected boolean canPerformBranching(List<Leafset> solution) {
         System.out.println("BRANCHING");
-        boolean foundPair=true;
-        //TODO
-        if(foundPair)
-            candidateVertexPair=solution.getFirst();
+        boolean foundPair=false;
+        int max_size = 0;
+        Set<Node> unique = new HashSet<>();
+        Set<Node> duplicates = new HashSet<>();
+        for(Leafset ls:solution){
+            for(Node leaf:ls.leaves) {
+                if (!unique.add(leaf)) {
+                    duplicates.add(leaf);
+                }
+            }
+        }
+        for(Leafset ls:solution){
+            if(!Collections.disjoint(ls.leaves, duplicates)){
+                if(ls.leaves.size()>max_size){
+                    foundPair = true;
+                    candidateLeafset = ls;
+                    max_size = ls.leaves.size();
+
+                }
+            }
+        }
+        System.out.println(candidateLeafset);
+        //System.out.println();
         return foundPair;
     }
 
@@ -53,13 +72,13 @@ public final class BranchOnSize extends AbstractBranchCreator<MAF, Leafset, MAST
      */
     @Override
     protected List<BAPNode<MAF, Leafset>> getBranches(BAPNode<MAF, Leafset> parentNode) {
-        //Branch 1: same color:
-        Used branchingDecision1=new Used(candidateVertexPair);
-        BAPNode<MAF,Leafset> node2=this.createBranch(parentNode, branchingDecision1, parentNode.getSolution(), parentNode.getInequalities());
+        //Branch 1: used
+        Used branchingDecision1=new Used(candidateLeafset);
+        BAPNode<MAF,Leafset> node2=this.createBranch(parentNode, branchingDecision1, dataModel.leafSets, parentNode.getInequalities());
 
-        //Branch 2: different colors:
-        NotUsed branchingDecision2=new NotUsed(candidateVertexPair);
-        BAPNode<MAF,Leafset> node1=this.createBranch(parentNode, branchingDecision2, parentNode.getSolution(), parentNode.getInequalities());
+        //Branch 2: not used
+        NotUsed branchingDecision2=new NotUsed(candidateLeafset);
+        BAPNode<MAF,Leafset> node1=this.createBranch(parentNode, branchingDecision2, dataModel.leafSets, parentNode.getInequalities());
 
         return Arrays.asList(node1, node2);
     }

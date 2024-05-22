@@ -14,14 +14,13 @@ import uMAF1.colgen.Master;
 import uMAF1.misc.Node;
 import uMAF1.model.*;
 
+import java.io.File;
 import java.util.*;
 import static uMAF1.misc.GraphMethods.remove_root;
 import static uMAF1.misc.LoadFiles.get_trees;
 
 public class uMAFSolver {
     private final MAF dataModel;
-    public Graph<Node, DefaultEdge> tree1;
-    public Graph<Node, DefaultEdge> tree2;
 
     public uMAFSolver(MAF dataModel){
 
@@ -53,16 +52,19 @@ public class uMAFSolver {
         bap.warmStart(upperBound, initSolution);
 
         //Solve the Graph Coloring problem through Branch-and-Price
-        bap.runBranchAndPrice(System.currentTimeMillis() + 8000000L);
+        bap.runBranchAndPrice(System.currentTimeMillis() + 10000000000L);
 
         //Print solution:
         System.out.println("================ Solution ================");
-        System.out.println("BAP terminated with objective (chromatic number): " + (bap.getObjective() -1));
-        System.out.println("Total Number of iterations: " + bap.getTotalNrIterations());
-        System.out.println("Total Number of processed nodes: " + bap.getNumberOfProcessedNodes());
+        System.out.println("BAP terminated with objective: " + (bap.getObjective()));
+        System.out.println("Total Number of Columns Generated: " + bap.getTotalNrIterations());
+        System.out.println("Total Number of branching nodes: " + bap.getNumberOfProcessedNodes());
+        System.out.println("Total solve time (ms): " + bap.getSolveTime());
         System.out.println("Total Time spent on master problems: " + bap.getMasterSolveTime() + " Total time spent on pricing problems: " + bap.getPricingSolveTime());
         System.out.println("Solution is optimal: " + bap.isOptimal());
         System.out.println("Final Leaf sets");
+        System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
+
         List<Leafset> solution = bap.getSolution();
         for (Leafset column : solution)
             System.out.println(column);
@@ -89,11 +91,28 @@ public class uMAFSolver {
     }
 
     public static void main(String[] args){
+        run_file("data/maindataset/TREEPAIR_150_35_90_04.tree");
+        //run_folder("data/maindataset");
+    }
+
+    public static void run_file(String file){
         MAF maf = new MAF();
-        Graph<Node, DefaultEdge>[] trees = get_trees("data/maindataset/TREEPAIR_50_5_50_01.tree");
+        Graph<Node, DefaultEdge>[] trees = get_trees(file);
         Graph<Node, DefaultEdge> tree1 = remove_root(trees[0]);
         Graph<Node, DefaultEdge> tree2 = remove_root(trees[1]);
         maf.set_vars(tree1,tree2);
         new uMAFSolver(maf);
+    }
+
+    public static void run_folder(String folder){
+        File directory = new File(folder);
+        if (directory.exists() && directory.isDirectory()) {
+            File[] files = directory.listFiles();
+            for (File file : files) {
+                System.out.println();
+                System.out.println(file.getPath());
+                run_file(file.getPath());
+            }
+        }
     }
 }

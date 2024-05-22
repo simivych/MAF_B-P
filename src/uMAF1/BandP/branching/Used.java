@@ -5,6 +5,8 @@ import org.jorlib.frameworks.columnGeneration.master.cutGeneration.AbstractInequ
 import uMAF1.colgen.Leafset;
 import uMAF1.model.MAF;
 
+import java.util.Collections;
+
 /**
  * Ensure that two vertices are colored differently
  * @author Joris Kinable
@@ -26,8 +28,10 @@ public final class Used implements BranchingDecision<MAF, Leafset> {
      */
     @Override
     public boolean columnIsCompatibleWithBranchingDecision(Leafset column) {
-        // TODO check if column and leafset can both be true
-        return false;
+        if(column.equals(leafset)){
+            return true;
+        }
+        return (Collections.disjoint(column.leaves, leafset.leaves));
     }
 
     /**
@@ -37,11 +41,11 @@ public final class Used implements BranchingDecision<MAF, Leafset> {
      */
     @Override
     public boolean inEqualityIsCompatibleWithBranchingDecision(AbstractInequality inequality) {
-        return true; //Cuts are not added in this example
+        return true; //Cuts are no in this example
     }
 
     @Override
     public String toString(){
-        return "NotUsed "+leafset;
+        return "Used "+leafset;
     }
 }

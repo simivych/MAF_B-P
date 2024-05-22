@@ -54,12 +54,11 @@ public final class BranchAndPrice extends AbstractBranchAndPrice<MAF, Leafset, M
      */
     @Override
     protected boolean isIntegerNode(BAPNode<MAF, Leafset> node) {
+        int leaf_count = 0;
         for(Leafset var : node.getSolution()) {
-            if (var.value != 0.0 && var.value != 1.0) {
-                return false;
-            }
+            leaf_count+= var.leaves.size();
         }
-        return true;
+        return leaf_count==dataModel.leaves.size();
     }
 }
 

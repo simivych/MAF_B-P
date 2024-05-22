@@ -47,6 +47,7 @@ public class Duals {
     private void writeInitialDual(List<Leafset> leafSets) {
         try {
             cplex = new IloCplex();
+            cplex.setOut(null);
             var = new IloNumVarArray();
             rng = new IloRangeArray();
             populate(leafSets);
@@ -101,13 +102,13 @@ public class Duals {
             i++;
         }
         for (int internalNode : internal1) {
-            if (leafset.has_internal(internalNode, tree1)) {
+            if (leafset.has_internal(internalNode, tree1, 1)) {
                 leafConstraint.addTerm(1.0, var.getElement(i));
             }
             i++;
         }
         for (int internalNode : internal2) {
-            if (leafset.has_internal(internalNode, tree2)) {
+            if (leafset.has_internal(internalNode, tree2, 2)) {
                 leafConstraint.addTerm(1.0, var.getElement(i));
             }
             i++;
@@ -170,7 +171,7 @@ public class Duals {
                 var.add(cplex.numVar(column, -Double.MAX_VALUE, 1, STR."max\{newLeafSet.toString()}"));
                 int i = leaves.size();
                 for (int internal : internal1) {
-                    if(newLeafSet.has_internal(internal,tree1)) {
+                    if(newLeafSet.has_internal(internal,tree1, 1)) {
                         IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
                         maxConstraint.addTerm(-1.0, var.getElement(var._num-1));
                         maxConstraint.addTerm(-1.0, var.getElement(i));
@@ -179,7 +180,7 @@ public class Duals {
                     i++;
                 }
                 for (int internal : internal2) {
-                    if(newLeafSet.has_internal(internal,tree2)) {
+                    if(newLeafSet.has_internal(internal,tree2, 2)) {
                         IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
                         maxConstraint.addTerm(-1.0, var.getElement(var._num-1));
                         maxConstraint.addTerm(-1.0, var.getElement(i));
