@@ -124,7 +124,6 @@ public class Duals {
      * @throws IloException
      */
     public double[] extractDuals() {
-        //TODO change to double[] with var ID
 
         double[] dualsMAP = new double[size+1];
         try{
@@ -134,7 +133,7 @@ public class Duals {
                 if(!v.getName().contains("max")) {
                     int pos = Integer.parseInt(v.getName());
                     dualsMAP[pos]= cplex.getValue(v);
-
+                    //System.out.println(v.getName()+" "+cplex.getValue(v));
                 }
             }
 
@@ -158,24 +157,34 @@ public class Duals {
             if(TECHNIQUE==0&&newLeafSet.leaves.size()>1) {
                 var.add(cplex.numVar(column, -Double.MAX_VALUE, 1, STR."max\{newLeafSet.toString()}"));
                 int i = 0;
-                for (Node leaf : leaves) {
-                    if(newLeafSet.contains(leaf)) {
-                        IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
-                        maxConstraint.addTerm(-1.0, var.getElement(var._num-1));
-                        maxConstraint.addTerm(1.0, var.getElement(i));
-                        rng.add(cplex.addLe(maxConstraint, 0.0, STR."max_constraint\{leaf}"));
+                for (Node leaf1 : leaves) {
+                    int j = 0;
+                    for (Node leaf2 : leaves) {
+                        if (newLeafSet.contains(leaf1) &&newLeafSet.contains(leaf2) && i!=j) {
+                            IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
+                            maxConstraint.addTerm(-1.0, var.getElement(var._num - 1));
+                            maxConstraint.addTerm(1.0, var.getElement(i));
+                            maxConstraint.addTerm(-1.0, var.getElement(j));
+                            rng.add(cplex.addLe(maxConstraint, 0.0, STR."max_constraint\{leaf1}, \{leaf2}"));
+                        }
+                        j++;
                     }
                     i++;
                 }
             }else if(newLeafSet.leaves.size()>1){
                 var.add(cplex.numVar(column, -Double.MAX_VALUE, 1, STR."max\{newLeafSet.toString()}"));
                 int i = leaves.size();
-                for (int internal : internal1) {
-                    if(newLeafSet.has_internal(internal,tree1, 1)) {
-                        IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
-                        maxConstraint.addTerm(-1.0, var.getElement(var._num-1));
-                        maxConstraint.addTerm(-1.0, var.getElement(i));
-                        rng.add(cplex.addLe(maxConstraint, 0.0, STR."max_constraint\{internal}"));
+                for (int internaln1 : internal1) {
+                    int j = leaves.size();
+                    for (int internaln2 : internal1) {
+                        if (newLeafSet.has_internal(internaln1, tree1, 1) && newLeafSet.has_internal(internaln2, tree1, 1) &&internaln1!=internaln2) {
+                            IloLinearNumExpr maxConstraint = cplex.linearNumExpr();
+                            maxConstraint.addTerm(-1.0, var.getElement(var._num - 1));
+                            maxConstraint.addTerm(-1.0, var.getElement(i));
+                            maxConstraint.addTerm(1.0, var.getElement(j));
+                            rng.add(cplex.addLe(maxConstraint, 0.0, STR."max_constraint\{internaln1}, \{internaln2}"));
+                        }
+                        j++;
                     }
                     i++;
                 }

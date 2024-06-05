@@ -34,7 +34,7 @@ public final class BranchOnSize extends AbstractBranchCreator<MAF, Leafset, MAST
      */
     @Override
     protected boolean canPerformBranching(List<Leafset> solution) {
-        System.out.println("BRANCHING");
+        //System.out.println("BRANCHING");
         boolean foundPair=false;
         int max_size = 0;
         Set<Node> unique = new HashSet<>();
@@ -56,7 +56,7 @@ public final class BranchOnSize extends AbstractBranchCreator<MAF, Leafset, MAST
                 }
             }
         }
-        System.out.println(candidateLeafset);
+        //System.out.println(candidateLeafset);
         //System.out.println();
         return foundPair;
     }

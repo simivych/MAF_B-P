@@ -27,15 +27,15 @@ public final class MASTSolver extends AbstractPricingProblemSolver<MAF, Leafset,
 
     @Override
     protected List<Leafset> generateNewColumns() {
-        List<Leafset> newleafsets=new ArrayList<>();
+        List<Leafset> newLeafSets=new ArrayList<>();
         System.out.println("GENERATING");
         duals = this.pricingProblem.dualCosts;
         lookupTable = new HashMap<>();
         Leafset newLS = getMAST();
         System.out.println(newLS);
         if(newLS!=null)
-            newleafsets.add(newLS);
-        return newleafsets;
+            newLeafSets.add(newLS);
+        return newLeafSets;
     }
 
     @Override
@@ -63,11 +63,11 @@ public final class MASTSolver extends AbstractPricingProblemSolver<MAF, Leafset,
                 Subtree subtree4 = solveMAST(p1,q2);
                 Subtree subtree34 = this.new Subtree(subtree3,subtree4);
 
-                if(subtree12.weightedSize>max_size){
+                if(subtree12.weightedSize>=max_size){
                     MAST = subtree12;
                     max_size = subtree12.weightedSize;
                 }
-                if(subtree34.weightedSize>max_size){
+                if(subtree34.weightedSize>=max_size){
                     MAST = subtree34;
                     max_size = subtree34.weightedSize;
                 }

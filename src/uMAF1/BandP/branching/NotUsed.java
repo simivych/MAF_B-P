@@ -26,7 +26,7 @@ public final class NotUsed implements BranchingDecision<MAF, Leafset> {
      */
     @Override
     public boolean columnIsCompatibleWithBranchingDecision(Leafset column) {
-        // if this column isn't used it doesn't prevent any other leafsets to be used
+        // if this column isn't used it doesn't prevent any other leafsets to be used so only returns false for this exact column
         return !column.equals(leafset);
     }
 

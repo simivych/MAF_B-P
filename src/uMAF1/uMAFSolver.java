@@ -27,11 +27,10 @@ public class uMAFSolver {
         this.dataModel = dataModel;
 
         //Create the pricing problem
-        MAST mast=new MAST(dataModel, "Maximimum Agreement Forest");
-
+        MAST mast = new MAST(dataModel, "Maximimum Agreement Forest");
 
         //Create the master problem
-        Master master=new Master(dataModel, mast);
+        Master master = new Master(dataModel, mast);
 
         //Define which solvers to use
         List<Class<? extends AbstractPricingProblemSolver<MAF, Leafset, MAST>>> solvers= Collections.singletonList(MASTSolver.class);
@@ -63,7 +62,7 @@ public class uMAFSolver {
         System.out.println("Total Time spent on master problems: " + bap.getMasterSolveTime() + " Total time spent on pricing problems: " + bap.getPricingSolveTime());
         System.out.println("Solution is optimal: " + bap.isOptimal());
         System.out.println("Final Leaf sets");
-        System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
+        //System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
 
         List<Leafset> solution = bap.getSolution();
         for (Leafset column : solution)
@@ -91,8 +90,9 @@ public class uMAFSolver {
     }
 
     public static void main(String[] args){
-        run_file("data/maindataset/TREEPAIR_150_35_90_04.tree");
-        //run_folder("data/maindataset");
+        run_file("data/maindataset/TREEPAIR_50_5_50_04.tree");
+
+        //run_folder("data/maindataset"); TREEPAIR_200_10_70_05
     }
 
     public static void run_file(String file){
@@ -106,12 +106,22 @@ public class uMAFSolver {
 
     public static void run_folder(String folder){
         File directory = new File(folder);
+        int i = 0;
         if (directory.exists() && directory.isDirectory()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                System.out.println();
-                System.out.println(file.getPath());
-                run_file(file.getPath());
+                if(file.getName().contains("TREEPAIR_150")||file.getName().contains("TREEPAIR_200")) {
+                    if(i>=172) {
+                        System.out.println();
+                        System.out.println(file.getPath());
+                        run_file(file.getPath());
+                    }else {
+                        System.out.println("DONE");
+                        System.out.println(file.getPath());
+                    }
+                    i++;
+
+                }
             }
         }
     }
