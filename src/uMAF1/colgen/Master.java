@@ -116,7 +116,7 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             }
         }
         for (int internalNode : dataModel.internal1) {
-            if(leafSet.has_internal(internalNode, dataModel.tree1, 2)){
+            if(leafSet.has_internal(internalNode, dataModel.tree1, 1)){
                 column = column.and(masterData.cplex.column(masterData.rng[i++], 1.0));
             }else{
                 column = column.and(masterData.cplex.column(masterData.rng[i++], 0.0));

@@ -28,11 +28,11 @@ public final class MASTSolver extends AbstractPricingProblemSolver<MAF, Leafset,
     @Override
     protected List<Leafset> generateNewColumns() {
         List<Leafset> newLeafSets=new ArrayList<>();
-        System.out.println("GENERATING");
+        //System.out.println("GENERATING");
         duals = this.pricingProblem.dualCosts;
         lookupTable = new HashMap<>();
         Leafset newLS = getMAST();
-        System.out.println(newLS);
+        //System.out.println(newLS);
         if(newLS!=null)
             newLeafSets.add(newLS);
         return newLeafSets;
