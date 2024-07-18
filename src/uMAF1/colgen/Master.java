@@ -2,6 +2,7 @@ package uMAF1.colgen;
 
 import ilog.concert.*;
 import ilog.cplex.IloCplex;
+import org.jgrapht.graph.DefaultEdge;
 import org.jorlib.frameworks.columnGeneration.branchAndPrice.branchingDecisions.BranchingDecision;
 import org.jorlib.frameworks.columnGeneration.io.TimeLimitExceededException;
 import org.jorlib.frameworks.columnGeneration.master.AbstractMaster;
@@ -21,17 +22,20 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
         duals = new Duals(dataModel.tree1, dataModel.tree2, dataModel.leafSets, dataModel.leaves, dataModel.internal1, dataModel.internal2);
     }
 
+
     /**
      * Build the cplex problem
      */
     @Override
     protected MAFData buildModel() {
+        dataModel.leafSets = new ArrayList<>();
         IloObjective obj = null;
         IloRange[] rng = new IloRange[dataModel.leaves.size()+dataModel.internal1.size()+dataModel.internal2.size()];
         IloNumVarArray var = new IloNumVarArray();
         IloCplex cplex = null;
         try{
             cplex = new IloCplex();
+            cplex.setParam(IloCplex.Param.RandomSeed, 123);
             cplex.setOut(null); //Disable cplex output
             cplex.setParam(IloCplex.IntParam.Threads, config.MAXTHREADS); //Set number of threads that may be used by the cplex
 
@@ -41,13 +45,13 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             int i = 0;
             // Add RHS of each constraint
             for (Node leaf : dataModel.leaves) {
-                rng[i++] = cplex.addRange(1.0, Double.MAX_VALUE, leaf.name);
+                rng[i++] = cplex.addRange(1.0, 1.0, leaf.name);
             }
             for (int internalNode : dataModel.internal1) {
-                rng[i++] = cplex.addRange(-Double.MAX_VALUE, 1.0, STR."internal\{internalNode}");
+                rng[i++] = cplex.addRange(0.0, 1.0, STR."internal\{internalNode}");
             }
             for (int internalNode : dataModel.internal2) {
-                rng[i++] = cplex.addRange(-Double.MAX_VALUE, 1.0, STR."internal\{internalNode}");
+                rng[i++] = cplex.addRange(0.0, 1.0, STR."internal\{internalNode}");
             }
         } catch (IloException e) {
             e.printStackTrace();
@@ -71,18 +75,11 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             //Set time limit
             double timeRemaining=Math.max(1,(timeLimit-System.currentTimeMillis())/1000.0);
             masterData.cplex.setParam(IloCplex.DoubleParam.TiLim, timeRemaining); //set time limit in seconds
-            //Potentially export the model
-            if(config.EXPORT_MODEL) masterData.cplex.exportModel(config.EXPORT_MASTER_DIR+"master_"+this.getIterationCount()+".lp");
-
             //Solve the model
             if(!masterData.cplex.solve() || masterData.cplex.getStatus()!=IloCplex.Status.Optimal){
                 if(masterData.cplex.getCplexStatus()==IloCplex.CplexStatus.AbortTimeLim) //Aborted due to time limit
                     throw new TimeLimitExceededException();
                 else
-                    System.out.println("USED");
-                    for(IloNumVar var : masterData.var.getArray()){
-                        System.out.println(var.getName());
-                    }
                     throw new RuntimeException("Master problem solve failed! Status: "+ masterData.cplex.getStatus());
             }else{
                 masterData.objectiveValue= masterData.cplex.getObjValue();
@@ -140,7 +137,7 @@ public final class Master extends AbstractMaster<MAF, Leafset, MAST, MAFData> {
             IloColumn column = getColumn(leafset);
             duals.addLeafset(leafset);
             //Create the variable and store it
-            IloNumVar variable= masterData.cplex.numVar(column, 0.0,1.0, IloNumVarType.Float, leafset.leaves.toString());
+            IloNumVar variable = masterData.cplex.numVar(column, 0.0,1.0,leafset.leaves.toString());
             masterData.var.add(variable);
             masterData.cplex.add(variable);
             masterData.addColumn(leafset, variable);

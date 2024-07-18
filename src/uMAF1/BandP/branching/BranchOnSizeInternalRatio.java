@@ -34,7 +34,7 @@ public final class BranchOnSizeInternalRatio extends AbstractBranchCreator<MAF, 
      */
     @Override
     protected boolean canPerformBranching(List<Leafset> solution) {
-        //System.out.println("BRANCHING");
+        //System.out.print("BRANCHING   ");
         boolean foundPair=false;
         double max_ratio = 0;
         Set<Node> unique = new HashSet<>();
@@ -48,7 +48,7 @@ public final class BranchOnSizeInternalRatio extends AbstractBranchCreator<MAF, 
         }
         for(Leafset ls:solution){
             if(!Collections.disjoint(ls.leaves, duplicates)){
-                double ratio = ((double)ls.subgraphNodes1.size()+(double)ls.subgraphNodes2.size())/(double) ls.leaves.size();
+                double ratio = ((double) ls.leaves.size()/(double)ls.subgraphNodes1.size()+(double)ls.subgraphNodes2.size());
                 if(ratio>max_ratio){
                     foundPair = true;
                     candidateLeafset = ls;

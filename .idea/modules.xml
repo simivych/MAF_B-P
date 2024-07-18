@@ -3,6 +3,7 @@
   <component name="ProjectModuleManager">
     <modules>
       <module fileurl="file://$PROJECT_DIR$/Thesis.iml" filepath="$PROJECT_DIR$/Thesis.iml" />
+      <module fileurl="file://$USER_HOME$/Downloads/jorlib-master/jorlib-core/src/main/jorlib.iml" filepath="$USER_HOME$/Downloads/jorlib-master/jorlib-core/src/main/jorlib.iml" />
     </modules>
   </component>
 </project>

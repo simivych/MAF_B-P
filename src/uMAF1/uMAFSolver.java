@@ -7,6 +7,7 @@ import org.jorlib.frameworks.columnGeneration.pricing.AbstractPricingProblemSolv
 
 import uMAF1.BandP.BranchAndPrice;
 import uMAF1.BandP.branching.BranchOnSize;
+import uMAF1.BandP.branching.BranchOnSizeInternalRatio;
 import uMAF1.colgen.Leafset;
 import uMAF1.colgen.MAST;
 import uMAF1.colgen.MASTSolver;
@@ -40,17 +41,16 @@ public class uMAFSolver {
         //Create a set of initial columns.
         List<Leafset> initSolution=this.getInitialSolution(mast);
 
-        //Lower bound on column generation solution (stronger is better): calculate least amount of finals needed to fulfil the order (ceil(\sum_j d_j*w_j /L)
         int lowerBound = 1;
 
         //Define Branch creators
-        List<? extends AbstractBranchCreator<MAF, Leafset, MAST>> branchCreators = Collections.singletonList(new BranchOnSize(dataModel, mast));
+        List<? extends AbstractBranchCreator<MAF, Leafset, MAST>> branchCreators = Collections.singletonList(new BranchOnSizeInternalRatio(dataModel, mast));
 
         //Create a Branch-and-Price instance, and provide the initial solution as a warm-start
         BranchAndPrice bap = new BranchAndPrice(dataModel, master, mast, solvers, branchCreators, lowerBound, upperBound);
         bap.warmStart(upperBound, initSolution);
 
-        //Solve the Graph Coloring problem through Branch-and-Price
+        //Solve the problem through Branch-and-Price
         bap.runBranchAndPrice(System.currentTimeMillis() + 10000000000L);
 
         //Print solution:
@@ -62,11 +62,12 @@ public class uMAFSolver {
         System.out.println("Total Time spent on master problems: " + bap.getMasterSolveTime() + " Total time spent on pricing problems: " + bap.getPricingSolveTime());
         System.out.println("Solution is optimal: " + bap.isOptimal());
         System.out.println("Final Leaf sets");
-        //System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
+        System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
 
         List<Leafset> solution = bap.getSolution();
-        for (Leafset column : solution)
+        for (Leafset column : solution) {
             System.out.println(column);
+        }
 
         //Clean up:
         bap.close(); //This closes both the master and pricing problems
@@ -90,38 +91,36 @@ public class uMAFSolver {
     }
 
     public static void main(String[] args){
-        run_file("data/maindataset/TREEPAIR_50_5_50_04.tree");
+        // These are the instances that branch
+        //run_file("data/maindataset/TREEPAIR_50_35_70_03.tree");
+        //run_file("data/maindataset/TREEPAIR_50_30_50_04.tree");
+        //run_file("data/maindataset/TREEPAIR_50_35_70_02.tree");
+        //run_file("data/maindataset/TREEPAIR_200_20_50_04.tree");
+        //run_file("data/maindataset/TREEPAIR_200_35_70_02.tree");
 
-        //run_folder("data/maindataset"); TREEPAIR_200_10_70_05
+        run_folder("data/maindataset");
+
     }
 
-    public static void run_file(String file){
+    public static void run_file(String file) {
         MAF maf = new MAF();
         Graph<Node, DefaultEdge>[] trees = get_trees(file);
         Graph<Node, DefaultEdge> tree1 = remove_root(trees[0]);
         Graph<Node, DefaultEdge> tree2 = remove_root(trees[1]);
-        maf.set_vars(tree1,tree2);
+        maf.set_vars(tree1, tree2);
         new uMAFSolver(maf);
     }
 
     public static void run_folder(String folder){
         File directory = new File(folder);
-        int i = 0;
         if (directory.exists() && directory.isDirectory()) {
             File[] files = directory.listFiles();
             for (File file : files) {
-                if(file.getName().contains("TREEPAIR_150")||file.getName().contains("TREEPAIR_200")) {
-                    if(i>=172) {
-                        System.out.println();
+                if(file.getName().contains("TREEPAIR_100")) {
                         System.out.println(file.getPath());
                         run_file(file.getPath());
-                    }else {
-                        System.out.println("DONE");
-                        System.out.println(file.getPath());
-                    }
-                    i++;
-
                 }
+
             }
         }
     }
