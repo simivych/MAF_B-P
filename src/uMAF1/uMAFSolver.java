@@ -62,8 +62,6 @@ public class uMAFSolver {
         System.out.println("Total Time spent on master problems: " + bap.getMasterSolveTime() + " Total time spent on pricing problems: " + bap.getPricingSolveTime());
         System.out.println("Solution is optimal: " + bap.isOptimal());
         System.out.println("Final Leaf sets");
-        System.out.println((bap.getObjective())+" "+ bap.getTotalNrIterations()+" "+ bap.getNumberOfProcessedNodes()+" "+ bap.getSolveTime() );
-
         List<Leafset> solution = bap.getSolution();
         for (Leafset column : solution) {
             System.out.println(column);
@@ -98,7 +96,9 @@ public class uMAFSolver {
         //run_file("data/maindataset/TREEPAIR_200_20_50_04.tree");
         //run_file("data/maindataset/TREEPAIR_200_35_70_02.tree");
 
-        run_folder("data/maindataset");
+        run_file("data/maindataset/TREEPAIR_50_25_70_02.tree");
+
+        //run_folder("data/maindataset");
 
     }
 
