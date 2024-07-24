@@ -15,6 +15,12 @@ public class Node {
         this.id = Integer.parseInt(name);
         this.name = name;
     }
+
+    public Node(int newId) {
+        this.id = newId;
+        this.name = String.valueOf(newId);
+    }
+
     @Override
     public boolean equals(Object object){
         if (object == null || object.getClass() != getClass()) {
